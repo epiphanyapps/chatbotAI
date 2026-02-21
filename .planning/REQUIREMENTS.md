@@ -19,9 +19,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **AUTH-01**: User can sign up via magic link email (passwordless)
 - [x] **AUTH-02**: User must verify email before accessing trial
-- [ ] **AUTH-03**: User must confirm 18+ age before accessing service
+- [x] **AUTH-03**: User must confirm 18+ age before accessing service
 - [x] **AUTH-04**: System blocks disposable email domains
-- [ ] **AUTH-05**: System fingerprints devices to prevent trial abuse
+- [x] **AUTH-05**: System fingerprints devices to prevent trial abuse
 - [x] **AUTH-06**: JWT session management with secure tokens
 
 ### Web Chat
@@ -44,7 +44,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **LEGAL-01**: Terms of Service page (adult content specific)
 - [ ] **LEGAL-02**: Privacy Policy page (GDPR/CCPA compliant)
-- [ ] **LEGAL-03**: Age verification gate (18+ confirmation with audit trail)
+- [x] **LEGAL-03**: Age verification gate (18+ confirmation with audit trail)
 
 ### Landing Page
 
@@ -99,9 +99,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-05 | Phase 1 | Pending |
 | AUTH-01 | Phase 2 | Complete |
 | AUTH-02 | Phase 2 | Complete |
-| AUTH-03 | Phase 2 | Pending |
+| AUTH-03 | Phase 2 | Complete |
 | AUTH-04 | Phase 2 | Complete |
-| AUTH-05 | Phase 2 | Pending |
+| AUTH-05 | Phase 2 | Complete |
 | AUTH-06 | Phase 2 | Complete |
 | CHAT-01 | Phase 3 | Pending |
 | CHAT-02 | Phase 3 | Pending |
@@ -115,7 +115,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PAY-05 | Phase 4 | Pending |
 | LEGAL-01 | Phase 2 | Pending |
 | LEGAL-02 | Phase 2 | Pending |
-| LEGAL-03 | Phase 2 | Pending |
+| LEGAL-03 | Phase 2 | Complete |
 | LAND-01 | Phase 5 | Pending |
 | LAND-02 | Phase 5 | Pending |
 | LAND-03 | Phase 5 | Pending |

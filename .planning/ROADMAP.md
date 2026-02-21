@@ -57,8 +57,8 @@ Plans:
 - [x] 02-02-PLAN.md - Magic Link Flow (Wave 2) (2026-02-21)
   - Magic link tokens, disposable email blocking, email sending, verification
   - Requirements: AUTH-01, AUTH-02, AUTH-04
-- [ ] 02-03-PLAN.md - Device Fingerprinting & Age Gate (Wave 2)
-  - FingerprintJS integration, age verification with audit trail
+- [x] 02-03-PLAN.md - Device Fingerprinting & Age Gate (Wave 2) (2026-02-21)
+  - Device fingerprint service, age verification endpoint, legal audit trail
   - Requirements: AUTH-03, AUTH-05, LEGAL-03
 - [ ] 02-04-PLAN.md - Legal Pages & Frontend Auth (Wave 3)
   - Terms of Service, Privacy Policy, Login, Verify, AgeGate pages
@@ -115,7 +115,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Deployment | 1/1 | Complete | 2026-02-21 |
-| 2. Authentication & Legal Foundation | 2/4 | In Progress | - |
+| 2. Authentication & Legal Foundation | 3/4 | In Progress | - |
 | 3. Web Chat Experience | 0/? | Not started | - |
 | 4. Payments & Subscriptions | 0/? | Not started | - |
 | 5. Landing Page & Launch | 0/? | Not started | - |
