@@ -24,13 +24,13 @@ slutbot_*
 *conversation*.jsonl
 *.jsonl
 
-# Model Files & Checkpoints
+# Model Files & Checkpoints (ML models, not SQLAlchemy)
 *_model/
 *_checkpoints/
 comprehensive_intimate_slutbot_model/
 comprehensive_slutbot_checkpoints/
 intimate_slutbot_model/
-models/
+/models/
 
 # Runtime & Logs
 __pycache__/
