@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-21)
 ## Current Position
 
 Phase: 2 of 5 (Authentication)
-Plan: 02-01 complete (1 of 4 in phase)
+Plan: 02-03 complete (3 of 4 in phase)
 Status: Phase 2 in progress
-Last activity: 2026-02-21 — Backend foundation complete
+Last activity: 2026-02-21 — Device fingerprinting and age verification complete
 
-Progress: [██░░░░░░░░] 25% (Phase 2 - 1/4 plans)
+Progress: [███████░░░] 75% (Phase 2 - 3/4 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: ~30 min
-- Total execution time: 0.5 hours
+- Total plans completed: 3
+- Average duration: ~12 min
+- Total execution time: ~37 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 1 | 30 min | 30 min |
-| 2 | 1 | 4 min | 4 min |
+| 2 | 3 | 10 min | 3.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01, 02-01
+- Last 5 plans: 01-01, 02-01, 02-02, 02-03
 - Trend: Accelerating - backend code faster than infra
 
 *Updated after each plan completion*
@@ -52,6 +52,12 @@ Recent decisions affecting current work:
 - Async SQLAlchemy with asyncpg: Native async for FastAPI
 - Valkey SSL for DO managed instances: valkeys:// protocol
 - Refresh tokens in Valkey: Prefix key pattern for per-token revocation
+- itsdangerous for magic link tokens: Cryptographic signing with expiration
+- Token replay prevention: Valkey setnx for atomic one-time use
+- Rate limiting: 3 requests per email per hour for magic links
+- Fingerprints as one signal: Combined with rate limiting and monitoring, not sole source
+- Age verification audit: Both confirmation and rejection logged for compliance
+- Exact confirmation text stored in audit for legal defensibility
 
 ### Pending Todos
 
@@ -63,9 +69,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-21 — Phase 2 Plan 01 complete
-Stopped at: Backend foundation complete (FastAPI, models, JWT handler)
-Resume file: .planning/phases/02-authentication/02-01-SUMMARY.md
+Last session: 2026-02-21 — Phase 2 Plan 03 complete
+Stopped at: Device fingerprinting and age verification complete
+Resume file: .planning/phases/02-authentication/02-03-SUMMARY.md
 
 ### Infrastructure Deployed
 

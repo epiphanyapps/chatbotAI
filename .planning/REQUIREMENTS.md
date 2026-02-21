@@ -17,10 +17,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Authentication
 
-- [ ] **AUTH-01**: User can sign up via magic link email (passwordless)
-- [ ] **AUTH-02**: User must verify email before accessing trial
+- [x] **AUTH-01**: User can sign up via magic link email (passwordless)
+- [x] **AUTH-02**: User must verify email before accessing trial
 - [ ] **AUTH-03**: User must confirm 18+ age before accessing service
-- [ ] **AUTH-04**: System blocks disposable email domains
+- [x] **AUTH-04**: System blocks disposable email domains
 - [ ] **AUTH-05**: System fingerprints devices to prevent trial abuse
 - [x] **AUTH-06**: JWT session management with secure tokens
 
@@ -97,10 +97,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-03 | Phase 1 | Pending |
 | INFRA-04 | Phase 1 | Pending |
 | INFRA-05 | Phase 1 | Pending |
-| AUTH-01 | Phase 2 | Pending |
-| AUTH-02 | Phase 2 | Pending |
+| AUTH-01 | Phase 2 | Complete |
+| AUTH-02 | Phase 2 | Complete |
 | AUTH-03 | Phase 2 | Pending |
-| AUTH-04 | Phase 2 | Pending |
+| AUTH-04 | Phase 2 | Complete |
 | AUTH-05 | Phase 2 | Pending |
 | AUTH-06 | Phase 2 | Complete |
 | CHAT-01 | Phase 3 | Pending |
