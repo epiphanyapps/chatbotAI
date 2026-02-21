@@ -14,6 +14,7 @@ from app.auth.magic_link import MagicLinkService
 from app.auth.email_validator import is_disposable_email
 from app.auth.jwt_handler import SessionManager
 from app.models.user import User
+from app.auth.fingerprint import check_trial_abuse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -57,13 +58,10 @@ async def request_magic_link(
 
     # 3. If new user, check fingerprint for trial abuse
     if not existing_user and body.fingerprint:
-        abuse_result = await db.execute(
-            select(User).where(
-                User.device_fingerprint == body.fingerprint, User.trial_used == True
+        if await check_trial_abuse(body.fingerprint, db):
+            raise HTTPException(
+                status_code=400, detail="Trial already used on this device"
             )
-        )
-        if abuse_result.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="Trial already used on this device")
 
     # 4. Rate limit: max 3 requests per email per hour
     rate_key = f"magic_link_rate:{body.email}"
