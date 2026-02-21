@@ -58,6 +58,7 @@ debug_*.py
 
 # HTML files (may contain training data)
 *.html
+!frontend/index.html
 conversation_browser.html
 
 # Any file with personal identifiers
