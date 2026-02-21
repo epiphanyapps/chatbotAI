@@ -48,10 +48,21 @@ Plans:
   3. User must confirm 18+ age before accessing service (with audit trail)
   4. System blocks disposable email domains (guerrillamail, tempmail, etc.)
   5. User sessions persist across browser restarts via JWT tokens
-**Plans**: TBD
+**Plans**: 4 plans in 3 waves
 
 Plans:
-- [ ] TBD
+- [ ] 02-01-PLAN.md - Backend Foundation (Wave 1)
+  - FastAPI project structure, database models, JWT session handler
+  - Requirements: AUTH-06
+- [ ] 02-02-PLAN.md - Magic Link Flow (Wave 2)
+  - Magic link tokens, disposable email blocking, email sending, verification
+  - Requirements: AUTH-01, AUTH-02, AUTH-04
+- [ ] 02-03-PLAN.md - Device Fingerprinting & Age Gate (Wave 2)
+  - FingerprintJS integration, age verification with audit trail
+  - Requirements: AUTH-03, AUTH-05, LEGAL-03
+- [ ] 02-04-PLAN.md - Legal Pages & Frontend Auth (Wave 3)
+  - Terms of Service, Privacy Policy, Login, Verify, AgeGate pages
+  - Requirements: LEGAL-01, LEGAL-02
 
 ### Phase 3: Web Chat Experience
 **Goal**: Users can chat with Sophia in real-time via browser
@@ -99,12 +110,12 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure Deployment | 1/1 | ✓ Complete | 2026-02-21 |
-| 2. Authentication & Legal Foundation | 0/? | Not started | - |
+| 1. Infrastructure Deployment | 1/1 | Complete | 2026-02-21 |
+| 2. Authentication & Legal Foundation | 0/4 | Planned | - |
 | 3. Web Chat Experience | 0/? | Not started | - |
 | 4. Payments & Subscriptions | 0/? | Not started | - |
 | 5. Landing Page & Launch | 0/? | Not started | - |
