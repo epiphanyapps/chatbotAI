@@ -1,0 +1,12 @@
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic-settings>=2.1.0
+sqlalchemy[asyncio]>=2.0.25
+asyncpg>=0.29.0
+pyjwt>=2.8.0
+itsdangerous>=2.1.2
+valkey>=6.0.0
+resend>=0.7.0
+disposable-email-domains>=0.0.162
+email-validator>=2.1.0
+python-multipart>=0.0.6

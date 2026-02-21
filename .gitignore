@@ -4,9 +4,10 @@
 *token*.txt
 *secret*
 *.env
+.env.*
 telegram_bot_token.txt
 telegram_requirements.txt
-config.py
+/config.py
 
 # Personal Training Data (CRITICAL)
 *training_pairs*.json
@@ -76,4 +77,9 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
-*~
+# Terraform
+*.auto.tfvars
+.terraform/
+terraform.tfstate*
+tfplan
+*.tfstate.backup
