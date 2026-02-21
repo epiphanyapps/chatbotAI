@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-21)
 
 **Core value:** Users can have explicit, uncensored conversations with Sophia that feel personal and engaging enough to pay monthly.
-**Current focus:** Phase 1: Infrastructure Deployment
+**Current focus:** Phase 2: Authentication
 
 ## Current Position
 
-Phase: 1 of 5 (Infrastructure Deployment)
-Plan: 01-01 complete
-Status: Phase 1 execution complete, awaiting verification
-Last activity: 2026-02-21 — Infrastructure deployed to DigitalOcean
+Phase: 2 of 5 (Authentication)
+Plan: 02-01 complete (1 of 4 in phase)
+Status: Phase 2 in progress
+Last activity: 2026-02-21 — Backend foundation complete
 
-Progress: [██████████] 100% (Phase 1)
+Progress: [██░░░░░░░░] 25% (Phase 2 - 1/4 plans)
 
 ## Performance Metrics
 
@@ -28,10 +28,11 @@ Progress: [██████████] 100% (Phase 1)
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 1 | 30 min | 30 min |
+| 2 | 1 | 4 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01
-- Trend: First plan complete
+- Last 5 plans: 01-01, 02-01
+- Trend: Accelerating - backend code faster than infra
 
 *Updated after each plan completion*
 
@@ -47,6 +48,10 @@ Recent decisions affecting current work:
 - Web-first architecture: 15x larger market than Telegram-only
 - Magic link auth: No passwords = simpler UX
 - 2-hour trial: Creates urgency, matches adult content patterns
+- pydantic-settings for config: Type-safe env var loading
+- Async SQLAlchemy with asyncpg: Native async for FastAPI
+- Valkey SSL for DO managed instances: valkeys:// protocol
+- Refresh tokens in Valkey: Prefix key pattern for per-token revocation
 
 ### Pending Todos
 
@@ -58,9 +63,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-21 — Phase 1 execution complete
-Stopped at: Infrastructure deployed, GitHub secrets configured
-Resume file: .planning/phases/01-infrastructure/01-01-SUMMARY.md
+Last session: 2026-02-21 — Phase 2 Plan 01 complete
+Stopped at: Backend foundation complete (FastAPI, models, JWT handler)
+Resume file: .planning/phases/02-authentication/02-01-SUMMARY.md
 
 ### Infrastructure Deployed
 

@@ -22,7 +22,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **AUTH-03**: User must confirm 18+ age before accessing service
 - [ ] **AUTH-04**: System blocks disposable email domains
 - [ ] **AUTH-05**: System fingerprints devices to prevent trial abuse
-- [ ] **AUTH-06**: JWT session management with secure tokens
+- [x] **AUTH-06**: JWT session management with secure tokens
 
 ### Web Chat
 
@@ -102,7 +102,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-03 | Phase 2 | Pending |
 | AUTH-04 | Phase 2 | Pending |
 | AUTH-05 | Phase 2 | Pending |
-| AUTH-06 | Phase 2 | Pending |
+| AUTH-06 | Phase 2 | Complete |
 | CHAT-01 | Phase 3 | Pending |
 | CHAT-02 | Phase 3 | Pending |
 | CHAT-03 | Phase 3 | Pending |

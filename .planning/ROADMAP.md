@@ -51,7 +51,7 @@ Plans:
 **Plans**: 4 plans in 3 waves
 
 Plans:
-- [ ] 02-01-PLAN.md - Backend Foundation (Wave 1)
+- [x] 02-01-PLAN.md - Backend Foundation (Wave 1) (2026-02-21)
   - FastAPI project structure, database models, JWT session handler
   - Requirements: AUTH-06
 - [ ] 02-02-PLAN.md - Magic Link Flow (Wave 2)
@@ -115,7 +115,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Deployment | 1/1 | Complete | 2026-02-21 |
-| 2. Authentication & Legal Foundation | 0/4 | Planned | - |
+| 2. Authentication & Legal Foundation | 1/4 | In Progress | - |
 | 3. Web Chat Experience | 0/? | Not started | - |
 | 4. Payments & Subscriptions | 0/? | Not started | - |
 | 5. Landing Page & Launch | 0/? | Not started | - |
