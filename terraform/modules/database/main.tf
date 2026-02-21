@@ -1,6 +1,14 @@
 # ChatbotAI Database Module
 # Managed PostgreSQL and Redis clusters
 
+terraform {
+  required_providers {
+    digitalocean = {
+      source = "digitalocean/digitalocean"
+    }
+  }
+}
+
 #==============================================================================
 # POSTGRESQL DATABASE CLUSTER
 #==============================================================================
@@ -12,21 +20,19 @@ resource "digitalocean_database_cluster" "postgres" {
   size       = var.postgres_size
   region     = var.region
   node_count = var.postgres_nodes
-  
+
   # Private networking for security
   private_network_uuid = var.vpc_uuid
-  
+
   # Maintenance window (low-traffic hours)
   maintenance_window {
     day  = var.maintenance_day
     hour = var.maintenance_hour
   }
-  
-  # Backup configuration
-  backup_restore {
-    database_name = var.postgres_database_name
-  }
-  
+
+  # Note: Automatic daily backups are included with managed databases
+  # 7-day retention by default
+
   tags = concat(
     [var.environment, "database", "postgres", "chatbotai"],
     [for k, v in var.tags : "${k}:${v}"]
@@ -52,34 +58,30 @@ resource "digitalocean_database_user" "readonly" {
 }
 
 #==============================================================================
-# REDIS CLUSTER (for sessions, caching, rate limiting)
+# VALKEY CLUSTER (for sessions, caching, rate limiting)
+# NOTE: DigitalOcean replaced Redis with Valkey (Redis-compatible fork)
 #==============================================================================
 
 resource "digitalocean_database_cluster" "redis" {
-  name       = "${var.name_prefix}-redis"
-  engine     = "redis"
-  version    = var.redis_version
+  name       = "${var.name_prefix}-valkey"
+  engine     = "valkey"
+  version    = "8"  # Valkey only supports version 8
   size       = var.redis_size
   region     = var.region
   node_count = var.redis_nodes
-  
+
   # Private networking
   private_network_uuid = var.vpc_uuid
-  
+
   # Maintenance window (same as PostgreSQL)
   maintenance_window {
     day  = var.maintenance_day
     hour = var.maintenance_hour
   }
-  
-  # Redis configuration
-  redis_config {
-    redis_maxmemory_policy             = "allkeys-lru"  # LRU eviction for cache
-    redis_notify_keyspace_events       = "Ex"          # Enable keyspace events for TTL
-    redis_timeout                      = 300           # Connection timeout
-    redis_tcp_keepalive                = 60            # TCP keepalive
-  }
-  
+
+  # Note: redis_config is configured via DigitalOcean dashboard or API
+  # Default configuration uses allkeys-lru eviction policy
+
   tags = concat(
     [var.environment, "cache", "redis", "chatbotai"],
     [for k, v in var.tags : "${k}:${v}"]
@@ -100,7 +102,9 @@ resource "digitalocean_database_connection_pool" "chatbotai" {
 }
 
 # Read-only connection pool for analytics
+# Disabled for dev environment (smallest DB tier has limited connections)
 resource "digitalocean_database_connection_pool" "readonly" {
+  count      = var.environment != "dev" ? 1 : 0
   cluster_id = digitalocean_database_cluster.postgres.id
   name       = "${var.postgres_database_name}_readonly_pool"
   mode       = "session"  # Better for analytics queries
@@ -133,21 +137,26 @@ resource "digitalocean_database_replica" "postgres_read" {
 # DATABASE FIREWALL RULES
 #==============================================================================
 
+# NOTE: Database firewall rules for App Platform are configured separately
+# after the App Platform is created, to avoid circular dependency.
+# For initial deployment, databases are accessible via VPC only (private networking).
+#
+# To restrict to specific App Platform app after deployment:
+# 1. Get app ID: doctl apps list
+# 2. Update firewall: doctl databases firewalls append <db-id> --rule app:<app-id>
+#
+# For production, consider using a separate terraform apply step for firewalls.
+
 resource "digitalocean_database_firewall" "postgres" {
+  count      = var.app_platform_id != "" ? 1 : 0
   cluster_id = digitalocean_database_cluster.postgres.id
-  
-  # Allow access from VPC only
+
+  # Allow access from App Platform
   rule {
-    type  = "tag"
-    value = var.environment
+    type  = "app"
+    value = var.app_platform_id
   }
-  
-  # Allow access from app tier
-  rule {
-    type  = "tag"
-    value = "app-tier"
-  }
-  
+
   # Allow access from specific IPs (for admin/debugging)
   dynamic "rule" {
     for_each = var.allowed_admin_ips
@@ -159,99 +168,61 @@ resource "digitalocean_database_firewall" "postgres" {
 }
 
 resource "digitalocean_database_firewall" "redis" {
+  count      = var.app_platform_id != "" ? 1 : 0
   cluster_id = digitalocean_database_cluster.redis.id
-  
-  # Allow access from VPC only
+
+  # Allow access from App Platform
   rule {
-    type  = "tag"
-    value = var.environment
+    type  = "app"
+    value = var.app_platform_id
   }
-  
-  # Allow access from app tier
-  rule {
-    type  = "tag" 
-    value = "app-tier"
+
+  # Allow access from specific IPs (for admin/debugging if needed)
+  dynamic "rule" {
+    for_each = var.allowed_admin_ips
+    content {
+      type  = "ip_addr"
+      value = rule.value
+    }
   }
-  
-  # Redis typically doesn't need admin access from outside
 }
 
 #==============================================================================
 # DATABASE MONITORING
 #==============================================================================
 
-# PostgreSQL monitoring alerts
-resource "digitalocean_monitor_alert" "postgres_cpu" {
-  count = var.enable_monitoring ? 1 : 0
-  
-  alerts {
-    email = var.alert_emails
-    slack {
-      channel = "#database-alerts"
-      url     = var.slack_webhook_url
-    }
-  }
-  
-  window      = "5m"
-  type        = "v1/insights/database/cpu"
-  compare     = "GreaterThan"
-  value       = 80
-  enabled     = true
-  entities    = [digitalocean_database_cluster.postgres.id]
-  description = "PostgreSQL CPU usage is high in ${var.environment}"
-}
+# NOTE: digitalocean_monitor_alert for database alerts is temporarily disabled
+# due to a bug in terraform-provider-digitalocean v2.76.0 that causes a panic
+# when creating alerts. Re-enable when provider is fixed.
+# See: https://github.com/digitalocean/terraform-provider-digitalocean/issues
+#
+# For now, configure database alerts manually via DigitalOcean dashboard:
+# - PostgreSQL CPU > 80%
+# - PostgreSQL Memory > 85%
+# - Redis Memory > 90%
 
-resource "digitalocean_monitor_alert" "postgres_memory" {
-  count = var.enable_monitoring ? 1 : 0
-  
-  alerts {
-    email = var.alert_emails
-    slack {
-      channel = "#database-alerts"
-      url     = var.slack_webhook_url
-    }
-  }
-  
-  window      = "5m"
-  type        = "v1/insights/database/memory_utilization_percent"
-  compare     = "GreaterThan"
-  value       = 85
-  enabled     = true
-  entities    = [digitalocean_database_cluster.postgres.id]
-  description = "PostgreSQL memory usage is high in ${var.environment}"
-}
+# resource "digitalocean_monitor_alert" "postgres_cpu" {
+#   count = var.enable_monitoring ? 1 : 0
+#   ...
+# }
 
-# Redis monitoring alerts
-resource "digitalocean_monitor_alert" "redis_memory" {
-  count = var.enable_monitoring ? 1 : 0
-  
-  alerts {
-    email = var.alert_emails
-    slack {
-      channel = "#database-alerts"
-      url     = var.slack_webhook_url
-    }
-  }
-  
-  window      = "5m"
-  type        = "v1/insights/database/memory_utilization_percent"
-  compare     = "GreaterThan"
-  value       = 90
-  enabled     = true
-  entities    = [digitalocean_database_cluster.redis.id]
-  description = "Redis memory usage is high in ${var.environment}"
-}
+# resource "digitalocean_monitor_alert" "postgres_memory" {
+#   count = var.enable_monitoring ? 1 : 0
+#   ...
+# }
+
+# resource "digitalocean_monitor_alert" "redis_memory" {
+#   count = var.enable_monitoring ? 1 : 0
+#   ...
+# }
 
 #==============================================================================
 # BACKUP CONFIGURATION
 #==============================================================================
 
-# Additional backup configuration for production
-resource "digitalocean_database_backup" "postgres_manual" {
-  count      = var.environment == "production" ? 1 : 0
-  cluster_id = digitalocean_database_cluster.postgres.id
-  type       = "manual"
-}
+# Note: DigitalOcean managed databases include automatic daily backups
+# Manual backup snapshots can be triggered via API or dashboard
+# Backup retention is 7 days by default
 
 #==============================================================================
 # DATABASE USERS WITH PROPER PERMISSIONS

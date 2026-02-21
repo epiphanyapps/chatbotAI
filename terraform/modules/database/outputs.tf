@@ -65,7 +65,7 @@ output "postgres_pool_uri" {
 
 output "postgres_readonly_pool_uri" {
   description = "PostgreSQL read-only pool URI"
-  value       = digitalocean_database_connection_pool.readonly.private_uri
+  value       = length(digitalocean_database_connection_pool.readonly) > 0 ? digitalocean_database_connection_pool.readonly[0].private_uri : null
   sensitive   = true
 }
 
@@ -178,7 +178,7 @@ output "database_info" {
       database         = digitalocean_database_db.chatbotai.name
       ssl_required     = true
       connection_pool  = digitalocean_database_connection_pool.chatbotai.name
-      readonly_pool    = digitalocean_database_connection_pool.readonly.name
+      readonly_pool    = length(digitalocean_database_connection_pool.readonly) > 0 ? digitalocean_database_connection_pool.readonly[0].name : null
     }
     redis = {
       host        = digitalocean_database_cluster.redis.private_host
@@ -197,14 +197,12 @@ output "database_status" {
   description = "Database cluster status information"
   value = {
     postgres = {
-      status     = digitalocean_database_cluster.postgres.status
       version    = digitalocean_database_cluster.postgres.version
       nodes      = digitalocean_database_cluster.postgres.node_count
       size       = digitalocean_database_cluster.postgres.size
       region     = digitalocean_database_cluster.postgres.region
     }
     redis = {
-      status     = digitalocean_database_cluster.redis.status
       version    = digitalocean_database_cluster.redis.version
       nodes      = digitalocean_database_cluster.redis.node_count
       size       = digitalocean_database_cluster.redis.size

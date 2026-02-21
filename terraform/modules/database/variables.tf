@@ -5,6 +5,12 @@ variable "environment" {
   type        = string
 }
 
+variable "app_platform_id" {
+  description = "App Platform application ID for database firewall rules"
+  type        = string
+  default     = ""
+}
+
 variable "region" {
   description = "DigitalOcean region"
   type        = string
@@ -63,13 +69,13 @@ variable "postgres_username" {
 variable "connection_pool_size" {
   description = "Size of main connection pool"
   type        = number
-  default     = 20
+  default     = 10  # Reduced for smallest DB tier (25 max connections)
 }
 
 variable "readonly_pool_size" {
   description = "Size of read-only connection pool"
   type        = number
-  default     = 10
+  default     = 5  # Reduced for smallest DB tier
 }
 
 variable "enable_read_replica" {
@@ -81,6 +87,12 @@ variable "enable_read_replica" {
 #==============================================================================
 # REDIS CONFIGURATION
 #==============================================================================
+
+variable "redis_region" {
+  description = "Region for Redis cluster (some regions don't support Redis)"
+  type        = string
+  default     = ""  # Empty means use main region
+}
 
 variable "redis_version" {
   description = "Redis version"

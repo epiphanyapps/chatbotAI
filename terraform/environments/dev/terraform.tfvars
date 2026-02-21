@@ -64,13 +64,6 @@ enable_debug_mode     = true  # Enable debug features
 max_scale_instances = 2  # Limit scaling for dev
 
 #==============================================================================
-# DEV-SPECIFIC FEATURES
-#==============================================================================
-
-# Enable features useful for development
-enable_debug_mode = true
-
-#==============================================================================
 # ENVIRONMENT VARIABLES (SECRETS MANAGED SEPARATELY)
 #==============================================================================
 

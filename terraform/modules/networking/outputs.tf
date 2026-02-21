@@ -10,14 +10,16 @@ output "vpc_cidr" {
   value       = digitalocean_vpc.main.ip_range
 }
 
+# NOTE: Firewalls are disabled for App Platform deployments
+# These outputs are preserved for Droplet-based deployments
 output "web_firewall_id" {
-  description = "Web firewall ID"
-  value       = digitalocean_firewall.web.id
+  description = "Web firewall ID (null for App Platform)"
+  value       = null
 }
 
 output "database_firewall_id" {
-  description = "Database firewall ID"
-  value       = digitalocean_firewall.database.id
+  description = "Database firewall ID (null for App Platform)"
+  value       = null
 }
 
 output "load_balancer_id" {

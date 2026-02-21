@@ -108,7 +108,7 @@ module "database" {
   postgres_size  = local.db_config[var.environment].postgres_size
   postgres_nodes = local.db_config[var.environment].postgres_nodes
   
-  # Redis configuration  
+  # Valkey (Redis-compatible) configuration
   redis_size  = local.db_config[var.environment].redis_size
   redis_nodes = local.db_config[var.environment].redis_nodes
 }
@@ -119,33 +119,35 @@ module "database" {
 
 module "app_platform" {
   source = "./modules/app-platform"
-  
+
   environment = var.environment
   name_prefix = local.name_prefix
-  
+  region      = var.region
+
   # GitHub configuration
   github_repo   = "epiphanyapps/chatbotAI"
-  github_branch = var.environment == "production" ? "main" : "develop"
-  
+  github_branch = "main"  # Only main branch exists currently
+
   # Domain configuration
   domain_name = var.environment == "production" ? "intimateai.chat" : "${var.environment}.intimateai.chat"
-  
+
   # Scaling configuration
   web_instance_count = local.app_config[var.environment].web_instances
   web_instance_size  = local.app_config[var.environment].web_size
-  api_instance_count = local.app_config[var.environment].api_instances  
+  api_instance_count = local.app_config[var.environment].api_instances
   api_instance_size  = local.app_config[var.environment].api_size
-  
+
   # Database connections
   postgres_connection_uri = module.database.postgres_private_uri
   redis_connection_uri    = module.database.redis_private_uri
-  
+
   # Environment variables
-  stripe_secret_key = var.stripe_secret_key
+  stripe_secret_key  = var.stripe_secret_key
   telegram_bot_token = var.telegram_bot_token
-  jwt_secret_key = var.jwt_secret_key
-  openai_api_key = var.openai_api_key
-  
+  jwt_secret_key     = var.jwt_secret_key
+  openai_api_key     = var.openai_api_key
+  encryption_key     = var.encryption_key
+
   depends_on = [
     module.database
   ]

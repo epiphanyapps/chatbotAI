@@ -79,11 +79,6 @@ output "redis_port" {
 # SSL & SECURITY
 #==============================================================================
 
-output "ssl_certificate_id" {
-  description = "SSL certificate ID"
-  value       = module.app_platform.ssl_certificate_id
-}
-
 output "force_https_enabled" {
   description = "HTTPS enforcement status"
   value       = var.force_https

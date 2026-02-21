@@ -1,6 +1,14 @@
 # ChatbotAI Networking Module
 # VPC and networking infrastructure
 
+terraform {
+  required_providers {
+    digitalocean = {
+      source = "digitalocean/digitalocean"
+    }
+  }
+}
+
 #==============================================================================
 # VPC (VIRTUAL PRIVATE CLOUD)
 #==============================================================================
@@ -17,100 +25,23 @@ resource "digitalocean_vpc" "main" {
 # FIREWALL RULES
 #==============================================================================
 
-# Web application firewall (allows HTTP/HTTPS traffic)
-resource "digitalocean_firewall" "web" {
-  name = "${var.name_prefix}-web-fw"
-  
-  # Allow HTTP traffic from anywhere
-  inbound_rule {
-    protocol         = "tcp"
-    port_range       = "80"
-    source_addresses = ["0.0.0.0/0", "::/0"]
-  }
-  
-  # Allow HTTPS traffic from anywhere
-  inbound_rule {
-    protocol         = "tcp"  
-    port_range       = "443"
-    source_addresses = ["0.0.0.0/0", "::/0"]
-  }
-  
-  # Allow API traffic on port 8000
-  inbound_rule {
-    protocol         = "tcp"
-    port_range       = "8000"
-    source_addresses = ["0.0.0.0/0", "::/0"]
-  }
-  
-  # Allow SSH for emergency access (restrict to specific IPs in production)
-  inbound_rule {
-    protocol         = "tcp"
-    port_range       = "22" 
-    source_addresses = var.allowed_ssh_ips
-  }
-  
-  # Allow all outbound traffic
-  outbound_rule {
-    protocol              = "tcp"
-    port_range            = "1-65535"
-    destination_addresses = ["0.0.0.0/0", "::/0"]
-  }
-  
-  outbound_rule {
-    protocol              = "udp"
-    port_range            = "1-65535"
-    destination_addresses = ["0.0.0.0/0", "::/0"]
-  }
-  
-  outbound_rule {
-    protocol              = "icmp"
-    destination_addresses = ["0.0.0.0/0", "::/0"]
-  }
-  
-  tags = [
-    "${var.environment}",
-    "web-tier",
-    "chatbotai"
-  ]
-}
+# NOTE: DigitalOcean Firewalls only apply to Droplets, not App Platform.
+# Since we're using App Platform (managed/serverless), firewall rules are handled
+# automatically by DigitalOcean. Database firewalls are configured separately
+# via digitalocean_database_firewall resources.
+#
+# These firewall resources are disabled for App Platform deployments.
+# Re-enable if switching to Droplet-based deployment.
 
-# Database firewall (only allows internal VPC traffic)
-resource "digitalocean_firewall" "database" {
-  name = "${var.name_prefix}-db-fw"
-  
-  # PostgreSQL access from VPC only
-  inbound_rule {
-    protocol    = "tcp"
-    port_range  = "5432"
-    source_tags = ["${var.environment}", "app-tier"]
-  }
-  
-  # Redis access from VPC only
-  inbound_rule {
-    protocol    = "tcp"
-    port_range  = "6379" 
-    source_tags = ["${var.environment}", "app-tier"]
-  }
-  
-  # Allow outbound for backups and updates
-  outbound_rule {
-    protocol              = "tcp"
-    port_range            = "443"
-    destination_addresses = ["0.0.0.0/0"]
-  }
-  
-  outbound_rule {
-    protocol              = "tcp"
-    port_range            = "80"
-    destination_addresses = ["0.0.0.0/0"]
-  }
-  
-  tags = [
-    "${var.environment}",
-    "database-tier", 
-    "chatbotai"
-  ]
-}
+# resource "digitalocean_firewall" "web" {
+#   name = "${var.name_prefix}-web-fw"
+#   # ... firewall rules for Droplet-based deployments
+# }
+
+# resource "digitalocean_firewall" "database" {
+#   name = "${var.name_prefix}-db-fw"
+#   # ... firewall rules for Droplet-based deployments
+# }
 
 #==============================================================================
 # LOAD BALANCER (if needed for high availability)
@@ -218,7 +149,6 @@ resource "digitalocean_record" "api" {
 resource "digitalocean_reserved_ip" "main" {
   count  = var.environment == "production" ? 1 : 0
   region = var.region
-  type   = "assign"
 }
 
 #==============================================================================
@@ -228,7 +158,7 @@ resource "digitalocean_reserved_ip" "main" {
 # Create monitoring checks for network endpoints
 resource "digitalocean_monitor_alert" "load_balancer_health" {
   count = var.environment == "production" && length(digitalocean_loadbalancer.main) > 0 ? 1 : 0
-  
+
   alerts {
     email = [var.alert_email]
     slack {
@@ -236,12 +166,12 @@ resource "digitalocean_monitor_alert" "load_balancer_health" {
       url     = var.slack_webhook_url
     }
   }
-  
+
   window      = "5m"
-  type        = "v1/insights/droplet/load_1"
+  type        = "v1/insights/lbaas/avg_cpu_utilization_percent"
   compare     = "GreaterThan"
-  value       = 3
+  value       = 80
   enabled     = true
-  entities    = []
-  description = "${var.environment} load balancer health check"
+  entities    = [digitalocean_loadbalancer.main[0].id]
+  description = "${var.environment} load balancer CPU utilization"
 }
