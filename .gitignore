@@ -93,3 +93,7 @@ Thumbs.db
 terraform.tfstate*
 tfplan
 *.tfstate.backup
+# Local-only backend/provider overrides (e.g. a local backend for dev). Never
+# commit these — a committed local-backend override breaks remote CI state.
+*_override.tf
+override.tf

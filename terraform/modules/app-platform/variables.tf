@@ -53,9 +53,9 @@ variable "web_instance_count" {
   description = "Number of web frontend instances"
   type        = number
   default     = 1
-  
+
   validation {
-    condition = var.web_instance_count >= 1 && var.web_instance_count <= 10
+    condition     = var.web_instance_count >= 1 && var.web_instance_count <= 10
     error_message = "Web instance count must be between 1 and 10."
   }
 }
@@ -64,10 +64,10 @@ variable "web_instance_size" {
   description = "Size of web frontend instances"
   type        = string
   default     = "basic-xxs"
-  
+
   validation {
     condition = contains([
-      "basic-xxs", "basic-xs", "basic-s", "basic-m", 
+      "basic-xxs", "basic-xs", "basic-s", "basic-m",
       "professional-xs", "professional-s", "professional-m", "professional-l"
     ], var.web_instance_size)
     error_message = "Must be a valid App Platform instance size."
@@ -78,9 +78,9 @@ variable "api_instance_count" {
   description = "Number of API backend instances"
   type        = number
   default     = 1
-  
+
   validation {
-    condition = var.api_instance_count >= 1 && var.api_instance_count <= 10
+    condition     = var.api_instance_count >= 1 && var.api_instance_count <= 10
     error_message = "API instance count must be between 1 and 10."
   }
 }
@@ -89,7 +89,7 @@ variable "api_instance_size" {
   description = "Size of API backend instances"
   type        = string
   default     = "basic-xs"
-  
+
   validation {
     condition = contains([
       "basic-xxs", "basic-xs", "basic-s", "basic-m",
@@ -223,10 +223,10 @@ variable "enable_ssl_redirect" {
 variable "trial_duration_minutes" {
   description = "Trial duration in minutes"
   type        = number
-  default     = 120  # 2 hours
-  
+  default     = 120 # 2 hours
+
   validation {
-    condition = var.trial_duration_minutes > 0 && var.trial_duration_minutes <= 1440
+    condition     = var.trial_duration_minutes > 0 && var.trial_duration_minutes <= 1440
     error_message = "Trial duration must be between 1 and 1440 minutes (24 hours)."
   }
 }
@@ -235,9 +235,9 @@ variable "log_level" {
   description = "Application log level"
   type        = string
   default     = "INFO"
-  
+
   validation {
-    condition = contains(["DEBUG", "INFO", "WARN", "ERROR"], var.log_level)
+    condition     = contains(["DEBUG", "INFO", "WARN", "ERROR"], var.log_level)
     error_message = "Log level must be: DEBUG, INFO, WARN, or ERROR."
   }
 }
@@ -246,9 +246,9 @@ variable "worker_concurrency" {
   description = "Number of concurrent workers for background tasks"
   type        = number
   default     = 2
-  
+
   validation {
-    condition = var.worker_concurrency >= 1 && var.worker_concurrency <= 16
+    condition     = var.worker_concurrency >= 1 && var.worker_concurrency <= 16
     error_message = "Worker concurrency must be between 1 and 16."
   }
 }
@@ -267,9 +267,9 @@ variable "cpu_alert_threshold" {
   description = "CPU usage alert threshold (percentage)"
   type        = number
   default     = 80
-  
+
   validation {
-    condition = var.cpu_alert_threshold >= 0 && var.cpu_alert_threshold <= 100
+    condition     = var.cpu_alert_threshold >= 0 && var.cpu_alert_threshold <= 100
     error_message = "CPU threshold must be between 0 and 100."
   }
 }
@@ -278,9 +278,9 @@ variable "memory_alert_threshold" {
   description = "Memory usage alert threshold (percentage)"
   type        = number
   default     = 85
-  
+
   validation {
-    condition = var.memory_alert_threshold >= 0 && var.memory_alert_threshold <= 100
+    condition     = var.memory_alert_threshold >= 0 && var.memory_alert_threshold <= 100
     error_message = "Memory threshold must be between 0 and 100."
   }
 }
@@ -289,9 +289,9 @@ variable "response_time_threshold" {
   description = "Response time alert threshold (milliseconds)"
   type        = number
   default     = 5000
-  
+
   validation {
-    condition = var.response_time_threshold >= 100 && var.response_time_threshold <= 30000
+    condition     = var.response_time_threshold >= 100 && var.response_time_threshold <= 30000
     error_message = "Response time threshold must be between 100 and 30000 milliseconds."
   }
 }
@@ -323,9 +323,9 @@ variable "max_file_size_mb" {
   description = "Maximum file upload size in MB"
   type        = number
   default     = 10
-  
+
   validation {
-    condition = var.max_file_size_mb >= 1 && var.max_file_size_mb <= 100
+    condition     = var.max_file_size_mb >= 1 && var.max_file_size_mb <= 100
     error_message = "Max file size must be between 1 and 100 MB."
   }
 }
@@ -334,9 +334,9 @@ variable "backup_retention_days" {
   description = "Number of days to retain backups"
   type        = number
   default     = 30
-  
+
   validation {
-    condition = var.backup_retention_days >= 1 && var.backup_retention_days <= 365
+    condition     = var.backup_retention_days >= 1 && var.backup_retention_days <= 365
     error_message = "Backup retention must be between 1 and 365 days."
   }
 }
@@ -361,9 +361,9 @@ variable "rate_limit_requests_per_minute" {
   description = "API rate limit (requests per minute)"
   type        = number
   default     = 60
-  
+
   validation {
-    condition = var.rate_limit_requests_per_minute >= 1 && var.rate_limit_requests_per_minute <= 1000
+    condition     = var.rate_limit_requests_per_minute >= 1 && var.rate_limit_requests_per_minute <= 1000
     error_message = "Rate limit must be between 1 and 1000 requests per minute."
   }
 }
@@ -378,9 +378,9 @@ variable "session_timeout_minutes" {
   description = "User session timeout in minutes"
   type        = number
   default     = 60
-  
+
   validation {
-    condition = var.session_timeout_minutes >= 5 && var.session_timeout_minutes <= 1440
+    condition     = var.session_timeout_minutes >= 5 && var.session_timeout_minutes <= 1440
     error_message = "Session timeout must be between 5 and 1440 minutes."
   }
 }
@@ -399,9 +399,9 @@ variable "data_retention_days" {
   description = "Data retention period in days"
   type        = number
   default     = 365
-  
+
   validation {
-    condition = var.data_retention_days >= 30 && var.data_retention_days <= 2555 # 7 years
+    condition     = var.data_retention_days >= 30 && var.data_retention_days <= 2555 # 7 years
     error_message = "Data retention must be between 30 and 2555 days."
   }
 }
@@ -416,9 +416,9 @@ variable "minimum_user_age" {
   description = "Minimum user age for registration"
   type        = number
   default     = 18
-  
+
   validation {
-    condition = var.minimum_user_age >= 13 && var.minimum_user_age <= 21
+    condition     = var.minimum_user_age >= 13 && var.minimum_user_age <= 21
     error_message = "Minimum age must be between 13 and 21."
   }
 }

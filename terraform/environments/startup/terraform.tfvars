@@ -12,33 +12,33 @@ region      = "nyc3"
 # DOMAIN CONFIGURATION
 #==============================================================================
 
-domain_name = "startup.intimateai.chat"  # Subdomain initially
+domain_name = "startup.intimateai.chat" # Subdomain initially
 
 #==============================================================================
 # ULTRA COST OPTIMIZATION
 #==============================================================================
 
 # Smallest possible database sizes
-postgres_size  = "db-s-1vcpu-1gb"    # $15/month
-postgres_nodes = 1                    # Single node only
-redis_size     = "db-s-1vcpu-1gb"     # $15/month  
+postgres_size  = "db-s-1vcpu-1gb" # $15/month
+postgres_nodes = 1                # Single node only
+redis_size     = "db-s-1vcpu-1gb" # $15/month  
 redis_nodes    = 1
 
 # Minimal app instances
-web_instance_count = 1
-web_instance_size  = "basic-xxs"      # $5/month
-api_instance_count = 1  
-api_instance_size  = "basic-xxs"      # $5/month
-worker_instance_count = 0             # No background workers initially
+web_instance_count    = 1
+web_instance_size     = "basic-xxs" # $5/month
+api_instance_count    = 1
+api_instance_size     = "basic-xxs" # $5/month
+worker_instance_count = 0           # No background workers initially
 
 # Disable expensive features
-enable_autoscaling             = false
-enable_monitoring             = false   # Save $5-10/month initially
+enable_autoscaling            = false
+enable_monitoring             = false # Save $5-10/month initially
 enable_point_in_time_recovery = false
 enable_read_replica           = false
-backup_retention_days         = 7       # Minimal backups
+backup_retention_days         = 7 # Minimal backups
 enable_audit_logging          = false
-enable_cdn                    = false   # Save CDN costs
+enable_cdn                    = false # Save CDN costs
 
 #==============================================================================
 # SIMPLIFIED SECURITY (BASIC)
@@ -52,9 +52,9 @@ gdpr_compliance = true
 # MINIMAL MONITORING
 #==============================================================================
 
-uptime_check_regions     = ["us_east"]  # Single region
+uptime_check_regions     = ["us_east"] # Single region
 enable_scheduled_scaling = false
-log_level               = "INFO"
+log_level                = "INFO"
 
 #==============================================================================
 # STARTUP MODE FEATURES

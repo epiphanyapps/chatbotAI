@@ -7,9 +7,9 @@
 variable "environment" {
   description = "Environment name (dev, staging, production)"
   type        = string
-  
+
   validation {
-    condition = contains(["dev", "staging", "production"], var.environment)
+    condition     = contains(["dev", "staging", "production"], var.environment)
     error_message = "Environment must be one of: dev, staging, production."
   }
 }
@@ -18,10 +18,10 @@ variable "region" {
   description = "DigitalOcean region for resources"
   type        = string
   default     = "nyc3"
-  
+
   validation {
     condition = contains([
-      "nyc1", "nyc3", "ams3", "sfo3", "sgp1", "lon1", 
+      "nyc1", "nyc3", "ams3", "sfo3", "sgp1", "lon1",
       "fra1", "tor1", "blr1", "syd1"
     ], var.region)
     error_message = "Must be a valid DigitalOcean region."
@@ -117,21 +117,21 @@ variable "subdomain_prefix" {
 variable "postgres_backup_hour" {
   description = "Hour of day for PostgreSQL backups (0-23)"
   type        = number
-  default     = 2  # 2 AM UTC
-  
+  default     = 2 # 2 AM UTC
+
   validation {
-    condition = var.postgres_backup_hour >= 0 && var.postgres_backup_hour <= 23
+    condition     = var.postgres_backup_hour >= 0 && var.postgres_backup_hour <= 23
     error_message = "Backup hour must be between 0 and 23."
   }
 }
 
 variable "postgres_backup_minute" {
-  description = "Minute of hour for PostgreSQL backups (0-59)"  
+  description = "Minute of hour for PostgreSQL backups (0-59)"
   type        = number
   default     = 0
-  
+
   validation {
-    condition = var.postgres_backup_minute >= 0 && var.postgres_backup_minute <= 59
+    condition     = var.postgres_backup_minute >= 0 && var.postgres_backup_minute <= 59
     error_message = "Backup minute must be between 0 and 59."
   }
 }
@@ -139,17 +139,17 @@ variable "postgres_backup_minute" {
 variable "database_maintenance_hour" {
   description = "Preferred hour for database maintenance (0-23)"
   type        = number
-  default     = 4  # 4 AM UTC
+  default     = 4 # 4 AM UTC
 }
 
 variable "database_maintenance_day" {
   description = "Preferred day for database maintenance"
   type        = string
   default     = "sunday"
-  
+
   validation {
     condition = contains([
-      "monday", "tuesday", "wednesday", "thursday", 
+      "monday", "tuesday", "wednesday", "thursday",
       "friday", "saturday", "sunday"
     ], var.database_maintenance_day)
     error_message = "Must be a valid day of the week."
@@ -192,7 +192,7 @@ variable "uptime_check_regions" {
 variable "enable_autoscaling" {
   description = "Enable App Platform autoscaling"
   type        = bool
-  default     = false  # Start with manual scaling
+  default     = false # Start with manual scaling
 }
 
 variable "max_scale_instances" {
@@ -214,13 +214,19 @@ variable "enable_cdn" {
 variable "allowed_ips" {
   description = "IP addresses allowed to access admin endpoints"
   type        = list(string)
-  default     = []  # Empty list allows all IPs
+  default     = [] # Empty list allows all IPs
+}
+
+variable "allowed_admin_ips" {
+  description = "IP addresses granted direct (admin/debug) access to the managed databases, in addition to the App Platform app. Empty = app-only."
+  type        = list(string)
+  default     = []
 }
 
 variable "enable_waf" {
   description = "Enable Web Application Firewall (if available)"
   type        = bool
-  default     = false  # DigitalOcean doesn't have native WAF yet
+  default     = false # DigitalOcean doesn't have native WAF yet
 }
 
 variable "force_https" {
@@ -237,9 +243,9 @@ variable "backup_retention_days" {
   description = "Number of days to retain database backups"
   type        = number
   default     = 30
-  
+
   validation {
-    condition = var.backup_retention_days >= 1 && var.backup_retention_days <= 365
+    condition     = var.backup_retention_days >= 1 && var.backup_retention_days <= 365
     error_message = "Backup retention must be between 1 and 365 days."
   }
 }
@@ -247,7 +253,7 @@ variable "backup_retention_days" {
 variable "enable_point_in_time_recovery" {
   description = "Enable point-in-time recovery for PostgreSQL"
   type        = bool
-  default     = false  # Enable for production
+  default     = false # Enable for production
 }
 
 #==============================================================================
@@ -264,9 +270,9 @@ variable "data_residency_region" {
   description = "Ensure data residency in specific region for compliance"
   type        = string
   default     = "us"
-  
+
   validation {
-    condition = contains(["us", "eu", "asia"], var.data_residency_region)
+    condition     = contains(["us", "eu", "asia"], var.data_residency_region)
     error_message = "Data residency must be: us, eu, or asia."
   }
 }
@@ -291,9 +297,9 @@ variable "log_level" {
   description = "Application log level"
   type        = string
   default     = "INFO"
-  
+
   validation {
-    condition = contains(["DEBUG", "INFO", "WARN", "ERROR"], var.log_level)
+    condition     = contains(["DEBUG", "INFO", "WARN", "ERROR"], var.log_level)
     error_message = "Log level must be: DEBUG, INFO, WARN, or ERROR."
   }
 }
@@ -311,11 +317,11 @@ variable "enable_scheduled_scaling" {
 variable "night_mode_schedule" {
   description = "Cron schedule for night mode scaling (reduce instances)"
   type        = string
-  default     = "0 2 * * *"  # 2 AM UTC
+  default     = "0 2 * * *" # 2 AM UTC
 }
 
 variable "day_mode_schedule" {
   description = "Cron schedule for day mode scaling (restore instances)"
   type        = string
-  default     = "0 8 * * *"  # 8 AM UTC
+  default     = "0 8 * * *" # 8 AM UTC
 }

@@ -27,10 +27,10 @@ resource "digitalocean_app" "chatbotai" {
     # Static site placeholder - will be replaced with actual app via CI/CD
     # Using inline HTML to avoid build failures
     static_site {
-      name             = "placeholder"
-      build_command    = "echo 'Placeholder'"
-      output_dir       = "."
-      index_document   = "index.html"
+      name           = "placeholder"
+      build_command  = "echo 'Placeholder'"
+      output_dir     = "."
+      index_document = "index.html"
 
       # Use a sample repo that always succeeds
       git {

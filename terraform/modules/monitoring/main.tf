@@ -99,5 +99,5 @@ resource "digitalocean_uptime_alert" "ssl_expiry" {
   # Alert 30 days before SSL expiry
   comparison = "less_than"
   threshold  = 30
-  period     = "30m"  # Valid period value
+  period     = "30m" # Valid period value
 }

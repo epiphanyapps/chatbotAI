@@ -42,7 +42,7 @@ variable "uptime_regions" {
   description = "Regions for uptime monitoring"
   type        = list(string)
   # Valid DigitalOcean uptime check regions: us_east, us_west, eu_west, se_asia
-  default     = ["us_east", "us_west", "eu_west"]
+  default = ["us_east", "us_west", "eu_west"]
 
   validation {
     condition = alltrue([
@@ -58,9 +58,9 @@ variable "response_time_threshold" {
   description = "Response time alert threshold in milliseconds"
   type        = number
   default     = 5000
-  
+
   validation {
-    condition = var.response_time_threshold >= 100 && var.response_time_threshold <= 30000
+    condition     = var.response_time_threshold >= 100 && var.response_time_threshold <= 30000
     error_message = "Response time threshold must be between 100ms and 30s."
   }
 }

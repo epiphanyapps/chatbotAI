@@ -22,16 +22,6 @@ output "database_firewall_id" {
   value       = null
 }
 
-output "load_balancer_id" {
-  description = "Load balancer ID (if created)"
-  value       = length(digitalocean_loadbalancer.main) > 0 ? digitalocean_loadbalancer.main[0].id : null
-}
-
-output "load_balancer_ip" {
-  description = "Load balancer IP address (if created)"
-  value       = length(digitalocean_loadbalancer.main) > 0 ? digitalocean_loadbalancer.main[0].ip : null
-}
-
 output "reserved_ip" {
   description = "Reserved IP address (if created)"
   value       = length(digitalocean_reserved_ip.main) > 0 ? digitalocean_reserved_ip.main[0].ip_address : null
