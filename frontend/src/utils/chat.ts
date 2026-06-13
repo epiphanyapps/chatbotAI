@@ -5,6 +5,10 @@ export type ChatEvent =
   | { type: 'typing' }
   | { type: 'token'; delta: string }
   | { type: 'done' }
+  // Emitted when an assistant reply was streamed live but blocked by the safety
+  // guard at the end. The client must discard the in-progress streamed buffer
+  // (it is never committed to history) and may show a brief notice.
+  | { type: 'retract'; reason: string }
   | { type: 'error'; detail: string }
 
 // Server closes with this code when the connection's token is invalid/expired.

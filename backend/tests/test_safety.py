@@ -89,6 +89,63 @@ async def test_blocked_model_output_is_not_persisted(db, valkey):
     assert all(r != "assistant" for r, _ in roles_contents)
 
 
+@pytest.mark.asyncio
+async def test_blocked_output_streams_live_then_retracts(db, valkey):
+    """Streaming-with-retraction: tokens reach the client live, but a blocked
+    assembled reply raises (so the WS handler can emit a retract) and the
+    assistant turn is never persisted."""
+    from app.engine import context as ctx
+
+    provider = FakeProvider("she is a naked 12 year old")
+    service = ChatService(provider=provider)
+    convo = await service.get_or_create_conversation(user_id=101, db=db)
+    await db.commit()
+
+    streamed: list[str] = []
+    with pytest.raises(BlockedContentError):
+        async for delta in service.respond_stream(convo, "hi", db, valkey):
+            streamed.append(delta)
+    await db.commit()
+
+    # Tokens DID stream live before the end-of-stream block was detected.
+    assert "".join(streamed).strip() == "she is a naked 12 year old"
+
+    # No assistant turn persisted in Postgres.
+    rows = (await db.execute(select(Message).order_by(Message.id))).scalars().all()
+    assert all(m.role != "assistant" for m in rows)
+
+    # Valkey/Postgres consistency: the cached window must not hold the blocked
+    # assistant turn, and must not orphan/duplicate the user turn.
+    window = await valkey.lrange(ctx._window_key(convo.id), 0, -1)
+    import json as _json
+    cached = [_json.loads(w) for w in window]
+    assert all(c["role"] != "assistant" for c in cached)
+    pg_users = [m.content for m in rows if m.role == "user"]
+    cache_users = [c["content"] for c in cached if c["role"] == "user"]
+    assert cache_users == pg_users  # cache mirrors durable store, no orphan
+
+
+@pytest.mark.asyncio
+async def test_safe_output_streams_and_persists(db, valkey):
+    """A SAFE reply streams live, persists the assistant turn, and warms the
+    cache with both sides (regression guard for the happy path)."""
+    from app.engine import context as ctx
+
+    provider = FakeProvider("hey you---missed you")
+    service = ChatService(provider=provider)
+    convo = await service.get_or_create_conversation(user_id=102, db=db)
+    await db.commit()
+
+    streamed = [d async for d in service.respond_stream(convo, "hi", db, valkey)]
+    await db.commit()
+    assert "".join(streamed).strip() == "hey you---missed you"
+
+    rows = (await db.execute(select(Message).order_by(Message.id))).scalars().all()
+    assert [(m.role) for m in rows] == ["user", "assistant"]
+    window = await valkey.lrange(ctx._window_key(convo.id), 0, -1)
+    assert len(window) == 2  # user + assistant cached as a pair
+
+
 # --- REST endpoint rejects blocked INPUT ------------------------------------
 
 @pytest.fixture
