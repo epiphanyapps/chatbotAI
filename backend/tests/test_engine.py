@@ -71,6 +71,99 @@ async def test_valkey_window_warmed_and_bounded(db, valkey, provider):
     assert len(window) == 2
 
 
+class _ThrowingProvider:
+    """Provider that yields a few tokens then raises mid-stream (issue #21)."""
+
+    def __init__(self, tokens_before_error: int = 2) -> None:
+        self.tokens_before_error = tokens_before_error
+        self.calls: list[list[dict]] = []
+
+    async def stream(self, messages, **overrides):
+        self.calls.append(messages)
+        for i in range(self.tokens_before_error):
+            yield f"tok{i} "
+        raise RuntimeError("provider blew up mid-stream")
+
+    async def complete(self, messages, **overrides):  # pragma: no cover
+        raise RuntimeError("provider blew up")
+
+
+@pytest.mark.asyncio
+async def test_midstream_failure_leaves_valkey_and_postgres_consistent(db, valkey):
+    """A provider crash mid-stream must not orphan a user turn in the cache.
+
+    Simulates the WS/REST flow: the user turn is persisted within the request
+    transaction and tokens stream out, then the provider raises. The transaction
+    is rolled back (as get_db / the WS handler would on the exception), so the
+    user turn never lands in Postgres — and it must also never land in Valkey,
+    otherwise the next prompt is poisoned by a user-only orphan.
+    """
+    service = ChatService(provider=_ThrowingProvider())
+    convo = await service.get_or_create_conversation(user_id=21, db=db)
+    await db.commit()  # commit the conversation row, like the WS "ready" step
+    convo_id = convo.id
+
+    streamed: list[str] = []
+    with pytest.raises(RuntimeError):
+        async for delta in service.respond_stream(convo, "are you there?", db, valkey):
+            streamed.append(delta)
+
+    # Tokens did stream to the client before the failure.
+    assert streamed == ["tok0 ", "tok1 "]
+
+    # The request transaction rolls back on the exception (get_db / WS handler).
+    await db.rollback()
+
+    # Valkey window must NOT contain the orphaned user turn.
+    key = ctx._window_key(convo_id)
+    window = await valkey.lrange(key, 0, -1)
+    assert window == []
+
+    # Postgres has no message rows either — cache and durable store agree.
+    rows = (await db.execute(select(Message))).scalars().all()
+    assert rows == []
+
+    # The next context window assembled from the stores has no orphaned user
+    # turn waiting without a reply.
+    recent = await ctx.load_recent(convo_id, db, valkey)
+    assert recent == []
+
+
+@pytest.mark.asyncio
+async def test_successful_turn_after_failure_has_no_duplicate_user(db, valkey):
+    """After a mid-stream failure + retry, the user message still appears once."""
+    convo = await ChatService(provider=_ThrowingProvider()).get_or_create_conversation(
+        user_id=22, db=db
+    )
+    await db.commit()
+    convo_id = convo.id
+
+    with pytest.raises(RuntimeError):
+        async for _ in ChatService(provider=_ThrowingProvider()).respond_stream(
+            convo, "hello?", db, valkey
+        ):
+            pass
+    await db.rollback()
+
+    from tests.conftest import FakeProvider
+
+    # Re-fetch the conversation in the fresh transaction, like the WS handler.
+    convo = await db.get(Conversation, convo_id)
+    good = FakeProvider()
+    bubbles = await ChatService(provider=good).respond_bubbles(convo, "hello?", db, valkey)
+    await db.commit()
+    assert bubbles == ["Hey baby", "missed you"]
+
+    # Exactly one user "hello?" reached the model on the successful retry.
+    sent = good.calls[0]
+    user_turns = [m for m in sent if m["role"] == "user" and m["content"] == "hello?"]
+    assert len(user_turns) == 1
+
+    # Cache holds exactly the committed pair: user + assistant.
+    window = await valkey.lrange(ctx._window_key(convo_id), 0, -1)
+    assert len(window) == 2
+
+
 @pytest.mark.asyncio
 async def test_history_hydrates_from_postgres_on_cache_miss(db, valkey, provider):
     service = ChatService(provider=provider)
