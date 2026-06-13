@@ -15,26 +15,65 @@ on:
       - 'terraform/**'
 
 # Least-privilege default for GITHUB_TOKEN. Individual jobs widen this only as
-# needed (PR comments, SARIF upload).
+# needed (SARIF upload).
 permissions:
   contents: read
 
 env:
   TF_VERSION: '1.6.0'
-  # Terraform Cloud organization for the remote backend (set as a repo variable,
-  # not a secret — the org name is not sensitive). Workspace is selected per-run
-  # via TF_WORKSPACE below.
+  # Terraform Cloud organization for the remote backend, used by the push-only
+  # plan/apply jobs. Set as a repo variable (not a secret — the org name is not
+  # sensitive). Workspace is selected per-run via TF_WORKSPACE.
   TF_CLOUD_ORGANIZATION: ${{ vars.TF_CLOUD_ORGANIZATION }}
 
 jobs:
+  # Runs on PRs and pushes. Does NOT touch the remote backend or any secret, so
+  # it works without Terraform Cloud configured and is safe for fork PRs. This
+  # is the PR gate; the real plan/apply against remote state runs only on push.
+  terraform-validate:
+    name: 'Validate'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./terraform
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive
+
+    # -backend=false installs providers and checks config without initializing
+    # the Terraform Cloud backend, so no org/token is required here.
+    - name: Terraform Init (no backend)
+      run: terraform init -backend=false -input=false
+
+    - name: Terraform Validate
+      run: terraform validate -no-color
+
+  # Push-only. Connects to the Terraform Cloud remote backend and plans against
+  # locked state. Requires the TF_CLOUD_ORGANIZATION variable + TF_API_TOKEN
+  # secret + TFC workspaces (production/dev) to be configured.
   terraform-plan:
     name: 'Terraform Plan'
     runs-on: ubuntu-latest
+    needs: terraform-validate
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
 
     permissions:
       contents: read
-      pull-requests: write  # post the plan as a PR comment
 
     defaults:
       run:
@@ -56,16 +95,10 @@ jobs:
       env:
         TF_WORKSPACE: ${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}
 
-    - name: Terraform Validate
-      run: terraform validate
-
-    # NOTE: we deliberately do NOT use `-out=tfplan` + upload-artifact here.
-    # A saved plan embeds resolved variable values (including secrets) in
-    # cleartext regardless of `sensitive = true`; uploading it as an artifact
-    # would expose every secret to anyone with Actions read access. State lives
-    # in Terraform Cloud, so `apply` re-plans safely from the same locked state.
+    # NOTE: deliberately no `-out=tfplan` + upload-artifact. A saved plan embeds
+    # resolved secret values in cleartext regardless of `sensitive = true`;
+    # apply re-plans from the same locked remote state instead.
     - name: Terraform Plan
-      id: plan
       run: |
         if [ "${{ github.ref }}" == "refs/heads/main" ]; then
           terraform plan -input=false -no-color -var-file="environments/production/terraform.tfvars"
@@ -84,44 +117,11 @@ jobs:
         TF_VAR_slack_webhook: ${{ secrets.SLACK_WEBHOOK }}
         TF_WORKSPACE: ${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}
 
-    - name: Comment PR with Plan
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      env:
-        # Secret values are redacted by Terraform (all secret vars are
-        # `sensitive = true`), so this plan text is safe to post.
-        PLAN: ${{ steps.plan.outputs.stdout }}
-      with:
-        script: |
-          const MAX = 60000; // keep under GitHub's comment size limit
-          let plan = process.env.PLAN || '(no plan output)';
-          if (plan.length > MAX) {
-            plan = plan.slice(0, MAX) + '\n... (truncated — see the Plan job log for full output)';
-          }
-          const body = `## Terraform Plan 📋
-
-          <details><summary>Show Plan</summary>
-
-          \`\`\`
-          ${plan}
-          \`\`\`
-
-          </details>
-
-          *Environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}*
-          `;
-          await github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body,
-          });
-
   terraform-apply:
     name: 'Terraform Apply'
     runs-on: ubuntu-latest
     needs: terraform-plan
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     # Production applies are gated by the GitHub `production` Environment —
     # configure required reviewers there so a push to main does not deploy
     # unattended.
@@ -150,9 +150,6 @@ jobs:
       env:
         TF_WORKSPACE: ${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}
 
-    # Applies directly against the locked Terraform Cloud state (no cross-job
-    # plan artifact). `apply` computes its own plan from the same state the plan
-    # job validated, so secrets never touch a persisted file.
     - name: Terraform Apply
       run: |
         if [ "${{ github.ref }}" == "refs/heads/main" ]; then
@@ -231,7 +228,7 @@ jobs:
     name: 'Notify Deployment'
     runs-on: ubuntu-latest
     needs: terraform-apply
-    if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    if: always() && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
 
     permissions:
       contents: read
