@@ -42,9 +42,12 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     # Two presets so realism/explicitness can be A/B tuned without a redeploy.
-    # primary = RP finetune (voice + explicit quality); alt = frontier-permissive (memory + coherence)
-    LLM_MODEL_PRIMARY: str = "sao10k/l3.3-euryale-70b"
-    LLM_MODEL_ALT: str = "deepseek/deepseek-chat"
+    # Selected via the issue #17 eval (backend/eval): Cydonia 24B won on the
+    # balance of explicit quality + voice + multi-bubble cadence + ~2s latency.
+    # Euryale 70B had the best prose but 11-50s latency (fails the <3s target).
+    # primary = RP finetune (voice + explicit, fast); alt = frontier-permissive (coherence, policy-stable)
+    LLM_MODEL_PRIMARY: str = "thedrummer/cydonia-24b-v4.1"
+    LLM_MODEL_ALT: str = "deepseek/deepseek-v3.2"
     LLM_ACTIVE_PRESET: str = "primary"  # "primary" | "alt"
     LLM_TEMPERATURE: float = 0.9
     LLM_MAX_TOKENS: int = 800
