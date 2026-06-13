@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { ChatSocket, splitBubbles, ChatEvent } from '../utils/chat'
 
 interface ChatMessage {
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'system'
   bubbles: string[]
 }
 
@@ -59,6 +59,17 @@ export default function Chat() {
             { role: 'assistant', bubbles: splitBubbles(finalText) },
           ])
         }
+      } else if (e.type === 'retract') {
+        // The reply was streamed live but blocked at the end. Discard the
+        // in-progress buffer WITHOUT committing it to history, and leave a
+        // brief muted notice in its place.
+        streamRef.current = ''
+        setStreaming('')
+        setTyping(false)
+        setMessages((prev) => [
+          ...prev,
+          { role: 'system', bubbles: ['Message removed.'] },
+        ])
       }
     }
 
@@ -133,7 +144,21 @@ export default function Chat() {
   )
 }
 
-function MessageRow({ role, bubbles }: { role: 'user' | 'assistant'; bubbles: string[] }) {
+function MessageRow({
+  role,
+  bubbles,
+}: {
+  role: 'user' | 'assistant' | 'system'
+  bubbles: string[]
+}) {
+  // A retracted reply leaves a centred, muted system notice — no bubble chrome.
+  if (role === 'system') {
+    return (
+      <div style={{ ...styles.row, justifyContent: 'center' }}>
+        <div style={styles.systemNotice}>{bubbles.join(' ')}</div>
+      </div>
+    )
+  }
   const isUser = role === 'user'
   return (
     <div style={{ ...styles.row, justifyContent: isUser ? 'flex-end' : 'flex-start' }}>
@@ -212,6 +237,12 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 8,
   },
   empty: { textAlign: 'center', color: '#6c6379', marginTop: 40 },
+  systemNotice: {
+    color: '#6c6379',
+    fontSize: 12,
+    fontStyle: 'italic',
+    padding: '4px 12px',
+  },
   row: { display: 'flex' },
   bubbleGroup: { display: 'flex', flexDirection: 'column', gap: 4, maxWidth: '78%' },
   bubbleHer: {

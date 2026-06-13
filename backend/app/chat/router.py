@@ -9,7 +9,7 @@ All paths run through ``ChatService`` so web and Telegram share one engine.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +19,8 @@ from app.auth.jwt_handler import SessionManager
 from app.core.config import get_settings
 from app.core.database import AsyncSessionLocal, get_db
 from app.core.valkey import create_valkey_client, get_valkey
-from app.engine.service import ChatService, split_bubbles
+from app.engine import safety
+from app.engine.service import BlockedContentError, ChatService, split_bubbles
 from app.models.conversation import Conversation, Message
 from app.models.user import User
 
@@ -49,8 +50,22 @@ async def send_message(
     valkey=Depends(get_valkey),
 ) -> MessageResponse:
     """Non-streaming reply, returned as texting-style bubbles."""
+    # Programmatic illegal-content (CSAM) guard: reject blocked input before it
+    # ever reaches the model. Return a generic detail — never echo the content.
+    if safety.is_blocked(body.text):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=safety.BLOCK_REASON,
+        )
     conversation = await service.get_or_create_conversation(user.id, db)
-    bubbles = await service.respond_bubbles(conversation, body.text, db, valkey)
+    try:
+        bubbles = await service.respond_bubbles(conversation, body.text, db, valkey)
+    except BlockedContentError as exc:
+        # Generated output was blocked by the safety guard; nothing persisted.
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=safety.BLOCK_REASON,
+        ) from exc
     return MessageResponse(conversation_id=conversation.id, bubbles=bubbles)
 
 
@@ -140,14 +155,36 @@ async def chat_ws(websocket: WebSocket) -> None:
                     {"type": "error", "detail": "message too long"}
                 )
                 continue
+            # Programmatic illegal-content (CSAM) guard on inbound text. Do not
+            # forward to the model; send a generic error and wait for the next
+            # frame. Never echo the offending content back to the client.
+            if safety.is_blocked(text):
+                await websocket.send_json(
+                    {"type": "error", "detail": safety.BLOCK_REASON}
+                )
+                continue
 
             await websocket.send_json({"type": "typing"})
 
             # One DB transaction per turn so each exchange is durably committed.
             async with AsyncSessionLocal() as db:
                 conversation = await db.get(Conversation, conversation_id)
-                async for delta in service.respond_stream(conversation, text, db, valkey):
-                    await websocket.send_json({"type": "token", "delta": delta})
+                try:
+                    async for delta in service.respond_stream(
+                        conversation, text, db, valkey
+                    ):
+                        await websocket.send_json({"type": "token", "delta": delta})
+                except BlockedContentError:
+                    # Generated output was blocked AFTER tokens already streamed
+                    # live to the client. The service did NOT persist the reply
+                    # (nor cache it). Commit the (screened) user turn, then tell
+                    # the client to RETRACT the in-progress streamed buffer — the
+                    # reason is generic and never echoes content. Await next frame.
+                    await db.commit()
+                    await websocket.send_json(
+                        {"type": "retract", "reason": safety.BLOCK_REASON}
+                    )
+                    continue
                 await db.commit()
 
             await websocket.send_json({"type": "done"})
