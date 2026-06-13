@@ -3,6 +3,7 @@
 import pytest
 from sqlalchemy import select
 
+from app.core.config import get_settings
 from app.engine import context as ctx
 from app.engine.personas import build_system_prompt, get_persona
 from app.engine.service import ChatService, split_bubbles
@@ -176,3 +177,95 @@ async def test_history_hydrates_from_postgres_on_cache_miss(db, valkey, provider
 
     recent = await ctx.load_recent(convo.id, db, valkey)  # empty cache → DB
     assert [m["content"] for m in recent] == ["older", "reply"]
+
+
+async def _seed_messages(convo: Conversation, n: int, db) -> list[Message]:
+    """Insert ``n`` alternating user/assistant messages and return them by id."""
+    msgs = []
+    for i in range(n):
+        role = "user" if i % 2 == 0 else "assistant"
+        msgs.append(Message(conversation_id=convo.id, role=role, content=f"msg-{i}"))
+    db.add_all(msgs)
+    await db.flush()
+    return msgs
+
+
+@pytest.mark.asyncio
+async def test_summary_and_window_are_gap_free(db, valkey, provider):
+    """#19 regression: every message is covered by either the summary
+    (id <= summarized_through) or the recent window (last N) — never absent
+    from both. Checked across many total lengths as the window slides."""
+    keep = get_settings().LLM_CONTEXT_TURNS
+    service = ChatService(provider=provider)
+
+    for k in range(1, keep + 1):
+        total = keep * 2 + k  # past the summary threshold, window has slid
+        convo = await service.get_or_create_conversation(user_id=1000 + k, db=db)
+        msgs = await _seed_messages(convo, total, db)
+
+        await ctx.maybe_summarize(convo, db, provider)
+
+        all_ids = {m.id for m in msgs}
+        # Recent window = last `keep` messages by id (what build_messages will use).
+        window_ids = {m.id for m in sorted(msgs, key=lambda m: m.id)[-keep:]}
+        summarized_ids = {m.id for m in msgs if m.id <= convo.summarized_through}
+
+        covered = window_ids | summarized_ids
+        missing = all_ids - covered
+        assert not missing, (
+            f"total={total}: ids {sorted(missing)} are in NEITHER summary "
+            f"(through {convo.summarized_through}) nor window {sorted(window_ids)}"
+        )
+        # Boundary must meet the window exactly: summary ends right where the
+        # window begins (no gap, no large overlap).
+        assert convo.summarized_through == min(window_ids) - 1
+
+
+@pytest.mark.asyncio
+async def test_summarizer_input_is_bounded(db, valkey, provider):
+    """#20 regression: the transcript handed to the summarizer per call stays
+    bounded (~CONTEXT_TURNS messages) and does NOT grow with total history,
+    because only newly-aged-out turns are folded in each run."""
+    settings = get_settings()
+    keep = settings.LLM_CONTEXT_TURNS
+    threshold = settings.LLM_SUMMARY_THRESHOLD
+    service = ChatService(provider=provider)
+    convo = await service.get_or_create_conversation(user_id=2000, db=db)
+
+    # Seed past the threshold so summarization is active, then walk the
+    # conversation forward many turns, summarizing each step like the live path.
+    await _seed_messages(convo, threshold, db)
+
+    def _turns_in_last_call() -> int:
+        user_msg = provider.calls[-1][-1]["content"]
+        return sum(
+            1
+            for ln in user_msg.splitlines()
+            if ln.startswith("user:") or ln.startswith("assistant:")
+        )
+
+    # First (catch-up) summarization, then keep growing the conversation far
+    # beyond `keep` and summarize at each step like the live path.
+    await ctx.maybe_summarize(convo, db, provider)
+    first_call_turns = _turns_in_last_call()
+
+    per_step_turns: list[int] = []
+    for _ in range(keep * 4):  # grow total by 4*keep — well past any window
+        await _seed_messages(convo, 1, db)
+        before = len(provider.calls)
+        await ctx.maybe_summarize(convo, db, provider)
+        if len(provider.calls) > before:
+            per_step_turns.append(_turns_in_last_call())
+
+    max_turns = max([first_call_turns, *per_step_turns])
+
+    # Bounded independent of total length: even the one-time catch-up fold is
+    # capped by the (constant) threshold-sized prefix, and steady-state folds are
+    # tiny. Unbounded behaviour would feed total-keep lines (hundreds+).
+    assert 0 < max_turns <= threshold, (
+        f"summarizer ingested {max_turns} turns; expected <= {threshold}"
+    )
+    # And it must NOT grow as the conversation lengthens: steady-state folds stay
+    # small no matter how long the chat gets.
+    assert per_step_turns, "expected steady-state summarizations to occur"
+    assert max(per_step_turns) <= keep

@@ -20,6 +20,12 @@ class Conversation(Base):
     persona: Mapped[str] = mapped_column(String(32), nullable=False, default="sophia")
     # Rolling summary of older turns, prepended to context once history grows long.
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Highest Message.id already folded into ``summary``. Everything with
+    # id <= summarized_through lives in the summary; everything with a greater id
+    # lives in the recent window. Together they tile the full history with no gap.
+    summarized_through: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_message_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
