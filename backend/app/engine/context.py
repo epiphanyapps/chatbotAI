@@ -114,12 +114,28 @@ async def push_window(conversation_id: int, turns: list[dict], valkey) -> None:
 async def maybe_summarize(
     conversation: Conversation, db: AsyncSession, provider: LLMProvider
 ) -> None:
-    """Fold older turns into ``conversation.summary`` once history grows long.
+    """Incrementally fold turns that have aged out of the recent window into
+    ``conversation.summary``, keeping summary + window gap-free and the
+    summarizer input bounded.
 
-    Runs periodically (every context-window's worth of new messages past the
-    threshold) so we summarize occasionally, not on every turn.
+    Invariant maintained: messages with ``id <= conversation.summarized_through``
+    are represented in ``summary``; messages with a greater id are in the recent
+    window (the last ``LLM_CONTEXT_TURNS``). The boundary is advanced so the two
+    together tile the entire history with no gap (#19).
+
+    Only the messages that *newly* aged out since the last run are read and
+    folded in, alongside the previous summary text — the full prefix is never
+    re-read, so the summarizer input stays bounded by ~LLM_CONTEXT_TURNS
+    regardless of total conversation length (#20).
     """
     settings = get_settings()
+    keep = settings.LLM_CONTEXT_TURNS
+
+    max_id = await db.scalar(
+        select(func.max(Message.id)).where(
+            Message.conversation_id == conversation.id
+        )
+    )
     total = await db.scalar(
         select(func.count(Message.id)).where(
             Message.conversation_id == conversation.id
@@ -127,33 +143,63 @@ async def maybe_summarize(
     )
     if not total or total < settings.LLM_SUMMARY_THRESHOLD:
         return
-    if total % settings.LLM_CONTEXT_TURNS != 0:
+
+    # The recent window is the last ``keep`` messages by id. Everything older than
+    # the window's first message must be covered by the summary. Find the id of
+    # the oldest message still inside the window so the summary boundary can be
+    # advanced to exactly meet it (no gap, no overlap).
+    window_first_id = await db.scalar(
+        select(func.min(Message.id)).where(
+            Message.conversation_id == conversation.id,
+            Message.id.in_(
+                select(Message.id)
+                .where(Message.conversation_id == conversation.id)
+                .order_by(Message.id.desc())
+                .limit(keep)
+            ),
+        )
+    )
+    if window_first_id is None:
         return
 
-    # Summarize everything except the most recent window.
-    keep = settings.LLM_CONTEXT_TURNS
+    # Target boundary: everything strictly below the window must be summarized.
+    target_through = window_first_id - 1
+    if target_through <= conversation.summarized_through:
+        return  # nothing new has aged out of the window yet
+
+    # Read ONLY the newly-aged-out messages (bounded by ~keep per run).
     result = await db.execute(
         select(Message)
-        .where(Message.conversation_id == conversation.id)
+        .where(
+            Message.conversation_id == conversation.id,
+            Message.id > conversation.summarized_through,
+            Message.id <= target_through,
+        )
         .order_by(Message.id.asc())
-        .limit(max(total - keep, 0))
     )
-    older = result.scalars().all()
-    if not older:
+    newly_aged = result.scalars().all()
+    if not newly_aged:
         return
 
-    transcript = "\n".join(f"{m.role}: {m.content}" for m in older)
+    transcript = "\n".join(f"{m.role}: {m.content}" for m in newly_aged)
+    prior = conversation.summary or ""
+    user_content = (
+        (f"# Existing memory note (carry forward, do not drop facts)\n{prior}\n\n" if prior else "")
+        + "# New turns to fold into the memory note\n"
+        + transcript
+    )
     prompt = [
         {
             "role": "system",
             "content": (
-                "Summarize the following adult roleplay conversation into a concise "
-                "memory note (3-6 sentences). Capture names introduced, ongoing "
-                "scenarios, established dynamics, and key facts the characters should "
-                "remember. Write it as factual notes, not narrative."
+                "You maintain a running memory note for an adult roleplay "
+                "conversation. Merge the new turns into the existing memory note "
+                "and return a single concise note (3-6 sentences). Preserve names "
+                "introduced, ongoing scenarios, established dynamics, and key facts "
+                "the characters should remember. Write factual notes, not narrative."
             ),
         },
-        {"role": "user", "content": transcript},
+        {"role": "user", "content": user_content},
     ]
     try:
         summary = await provider.complete(prompt, max_tokens=300, temperature=0.3)
@@ -161,4 +207,5 @@ async def maybe_summarize(
         return  # summarization is best-effort; never block the chat
     if summary.strip():
         conversation.summary = summary.strip()
+        conversation.summarized_through = target_through
         db.add(conversation)
