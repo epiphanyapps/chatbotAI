@@ -5,6 +5,11 @@ export type ChatEvent =
   | { type: 'typing' }
   | { type: 'token'; delta: string }
   | { type: 'done' }
+  | { type: 'error'; detail: string }
+
+// Server closes with this code when the connection's token is invalid/expired.
+// Reconnecting won't help until the user re-authenticates, so we stop.
+const WS_UNAUTHORIZED = 4401
 
 type Handlers = {
   onEvent: (e: ChatEvent) => void
@@ -26,6 +31,7 @@ export class ChatSocket {
   private ws: WebSocket | null = null
   private handlers: Handlers
   private closedByUser = false
+  private retries = 0
 
   constructor(handlers: Handlers) {
     this.handlers = handlers
@@ -40,7 +46,10 @@ export class ChatSocket {
     const ws = new WebSocket(wsUrl(), ['bearer', token])
     this.ws = ws
 
-    ws.onopen = () => this.handlers.onOpen?.()
+    ws.onopen = () => {
+      this.retries = 0 // healthy connection resets the backoff
+      this.handlers.onOpen?.()
+    }
     ws.onmessage = (ev) => {
       try {
         this.handlers.onEvent(JSON.parse(ev.data) as ChatEvent)
@@ -48,12 +57,16 @@ export class ChatSocket {
         /* ignore malformed frames */
       }
     }
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
       this.handlers.onClose?.()
-      if (!this.closedByUser) {
-        // Reconnect after a short backoff (e.g. token refresh, network blip).
-        setTimeout(() => this.connect(), 2000)
-      }
+      // Don't reconnect if the user closed us, or the server rejected auth —
+      // retrying with the same bad token just hammers the server every cycle.
+      if (this.closedByUser || ev.code === WS_UNAUTHORIZED) return
+      // Exponential backoff with jitter, capped at 30s (network blip, restart).
+      const delay = Math.min(2000 * 2 ** this.retries, 30000)
+      const jittered = delay * (0.5 + Math.random() * 0.5)
+      this.retries += 1
+      setTimeout(() => this.connect(), jittered)
     }
   }
 

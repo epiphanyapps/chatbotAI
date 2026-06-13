@@ -10,7 +10,7 @@ All paths run through ``ChatService`` so web and Telegram share one engine.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,9 +27,13 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 service = ChatService()
 
+# Upper bound on a single inbound message. A paid per-token backend makes
+# unbounded input a cost/abuse vector; cap it on every entry point (REST + WS).
+MAX_MESSAGE_CHARS = 4000
+
 
 class MessageRequest(BaseModel):
-    text: str
+    text: str = Field(min_length=1, max_length=MAX_MESSAGE_CHARS)
 
 
 class MessageResponse(BaseModel):
@@ -128,6 +132,13 @@ async def chat_ws(websocket: WebSocket) -> None:
             data = await websocket.receive_json()
             text = (data or {}).get("text", "").strip()
             if not text:
+                continue
+            # Same cap as the REST body; reject oversized frames instead of
+            # forwarding them to the (paid, per-token) model.
+            if len(text) > MAX_MESSAGE_CHARS:
+                await websocket.send_json(
+                    {"type": "error", "detail": "message too long"}
+                )
                 continue
 
             await websocket.send_json({"type": "typing"})
