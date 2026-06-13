@@ -43,7 +43,7 @@ resource "digitalocean_uptime_alert" "web_app_down" {
     email = var.alert_email != "" ? [var.alert_email] : []
 
     dynamic "slack" {
-      for_each = var.slack_webhook != "" ? [1] : []
+      for_each = var.slack_webhook != "" ? toset(["slack"]) : toset([])
       content {
         channel = "#infrastructure-alerts"
         url     = var.slack_webhook
@@ -65,7 +65,7 @@ resource "digitalocean_uptime_alert" "api_health_down" {
     email = var.alert_email != "" ? [var.alert_email] : []
 
     dynamic "slack" {
-      for_each = var.slack_webhook != "" ? [1] : []
+      for_each = var.slack_webhook != "" ? toset(["slack"]) : toset([])
       content {
         channel = "#api-alerts"
         url     = var.slack_webhook
@@ -88,7 +88,7 @@ resource "digitalocean_uptime_alert" "ssl_expiry" {
     email = var.alert_email != "" ? [var.alert_email] : []
 
     dynamic "slack" {
-      for_each = var.slack_webhook != "" ? [1] : []
+      for_each = var.slack_webhook != "" ? toset(["slack"]) : toset([])
       content {
         channel = "#security-alerts"
         url     = var.slack_webhook
