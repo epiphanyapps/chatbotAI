@@ -52,13 +52,29 @@ class ChatService:
     async def respond_stream(
         self, conversation: Conversation, user_text: str, db: AsyncSession, valkey
     ) -> AsyncIterator[str]:
-        """Stream assistant token deltas; persist the full turn when done."""
-        await ctx.append_turn(conversation, "user", user_text, db, valkey)
+        """Stream assistant token deltas; persist the full turn when done.
+
+        Valkey is not transactional with Postgres, so we must not push a turn to
+        the cache window before it is durably persisted: if the provider throws
+        mid-stream the DB transaction rolls back, but a cache push would survive
+        as an orphaned user-only turn and poison the next prompt (issue #21).
+
+        Ordering is therefore:
+          1. load recent history *before* persisting the current user turn, so a
+             cold-cache hydration from Postgres can never see (or warm the cache
+             with) an un-paired user turn;
+          2. assemble the messages (user_text appears exactly once);
+          3. persist the user turn to Postgres only (no cache push);
+          4. stream — a failure here rolls back with nothing pushed to Valkey;
+          5. persist the assistant turn, then push *both* sides to the window
+             together, only after the full turn succeeded.
+        """
         recent = await ctx.load_recent(conversation.id, db, valkey)
-        # load_recent already includes the just-appended user turn; drop it so we
-        # don't duplicate it as the final user message.
-        history = recent[:-1] if recent and recent[-1]["role"] == "user" else recent
-        messages = ctx.build_messages(conversation, history, user_text)
+        messages = ctx.build_messages(conversation, recent, user_text)
+
+        # Persist the user turn durably first, but keep it out of the cache until
+        # the assistant reply lands — see the docstring above.
+        await ctx.append_turn(conversation, "user", user_text, db, valkey, push_cache=False)
 
         collected: list[str] = []
         async for delta in self.provider.stream(messages):
@@ -67,7 +83,19 @@ class ChatService:
 
         reply = "".join(collected).strip()
         if reply:
-            await ctx.append_turn(conversation, "assistant", reply, db, valkey)
+            await ctx.append_turn(
+                conversation, "assistant", reply, db, valkey, push_cache=False
+            )
+            # Both sides are now in the DB; warm the cache as one atomic pair so
+            # the window can never hold a user turn without its reply.
+            await ctx.push_window(
+                conversation.id,
+                [
+                    {"role": "user", "content": user_text},
+                    {"role": "assistant", "content": reply},
+                ],
+                valkey,
+            )
             await ctx.maybe_summarize(conversation, db, self.provider)
 
     async def respond_bubbles(

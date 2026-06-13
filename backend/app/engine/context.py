@@ -75,19 +75,40 @@ async def append_turn(
     content: str,
     db: AsyncSession,
     valkey,
+    push_cache: bool = True,
 ) -> Message:
-    """Persist a message to Postgres and push it onto the Valkey window."""
-    settings = get_settings()
+    """Persist a message to Postgres; optionally push it onto the Valkey window.
+
+    Valkey is not transactional with Postgres: if the caller's transaction later
+    rolls back (e.g. the provider throws mid-stream) anything we pushed to the
+    cache would survive as an orphan and poison the next prompt. So the
+    streaming path persists turns with ``push_cache=False`` and only warms the
+    cache via :func:`push_window` once both sides of the turn are durably
+    committed. See issue #21.
+    """
     message = Message(conversation_id=conversation.id, role=role, content=content)
     db.add(message)
     await db.flush()  # assign id, keep within caller's transaction
 
-    key = _window_key(conversation.id)
-    await valkey.rpush(key, json.dumps({"role": role, "content": content}))
+    if push_cache:
+        await push_window(conversation.id, [{"role": role, "content": content}], valkey)
+    return message
+
+
+async def push_window(conversation_id: int, turns: list[dict], valkey) -> None:
+    """Append already-committed turns to the bounded Valkey window.
+
+    Only call this for turns that are durably persisted in Postgres, so the
+    cache can never diverge from the source of truth.
+    """
+    if not turns:
+        return
+    settings = get_settings()
+    key = _window_key(conversation_id)
+    await valkey.rpush(key, *[json.dumps(t) for t in turns])
     # Keep the window bounded: last N turns only.
     await valkey.ltrim(key, -settings.LLM_CONTEXT_TURNS, -1)
     await valkey.expire(key, 60 * 60 * 24)
-    return message
 
 
 async def maybe_summarize(
