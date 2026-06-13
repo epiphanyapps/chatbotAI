@@ -14,6 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.engine import safety
 from app.engine.personas import build_system_prompt, get_persona
 from app.engine.provider import LLMProvider
 from app.models.conversation import Conversation, Message
@@ -181,7 +182,17 @@ async def maybe_summarize(
     if not newly_aged:
         return
 
-    transcript = "\n".join(f"{m.role}: {m.content}" for m in newly_aged)
+    # Screen each newly-aged-out turn before it reaches the summarizer (a paid
+    # model call): redact any blocked (e.g. CSAM) content rather than forwarding
+    # it. This is a defence-in-depth backstop — the inbound and output guards
+    # should have already prevented such content from being persisted. Only the
+    # turns folded in *this* run are screened, preserving #19/#20's incremental,
+    # bounded summarizer input.
+    lines = []
+    for m in newly_aged:
+        content = "[redacted]" if safety.is_blocked(m.content) else m.content
+        lines.append(f"{m.role}: {content}")
+    transcript = "\n".join(lines)
     prior = conversation.summary or ""
     user_content = (
         (f"# Existing memory note (carry forward, do not drop facts)\n{prior}\n\n" if prior else "")

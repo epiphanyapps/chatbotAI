@@ -14,11 +14,20 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.engine import context as ctx
+from app.engine import safety
 from app.engine.provider import LLMProvider, get_provider
 from app.models.conversation import Conversation
 
 # Personas emit multiple text bubbles separated by a line containing only this.
 BUBBLE_DELIMITER = "---"
+
+
+class BlockedContentError(Exception):
+    """Raised when generated output is blocked by the safety guard.
+
+    The reply is neither persisted nor sent. Callers should surface a generic
+    error to the client without echoing any content.
+    """
 
 
 def split_bubbles(text: str) -> list[str]:
@@ -52,7 +61,18 @@ class ChatService:
     async def respond_stream(
         self, conversation: Conversation, user_text: str, db: AsyncSession, valkey
     ) -> AsyncIterator[str]:
-        """Stream assistant token deltas; persist the full turn when done.
+        """Stream assistant token deltas LIVE; screen the full reply at the end.
+
+        Tokens are forwarded to the client as they arrive (no output buffering),
+        so live streaming is preserved, while the full text is accumulated. When
+        the stream completes the assembled reply is screened by the safety guard:
+
+          - SAFE  → persist the assistant turn and warm the cache as normal.
+          - BLOCKED (e.g. CSAM) → raise :class:`BlockedContentError`. The
+            assistant turn is NEITHER persisted NOR pushed to the cache; the
+            client has already received the tokens and must retract them (the WS
+            handler emits a ``retract`` event). Any delta already sent cannot be
+            un-sent on the wire — retraction is a client-side discard.
 
         Valkey is not transactional with Postgres, so we must not push a turn to
         the cache window before it is durably persisted: if the provider throws
@@ -65,38 +85,53 @@ class ChatService:
              with) an un-paired user turn;
           2. assemble the messages (user_text appears exactly once);
           3. persist the user turn to Postgres only (no cache push);
-          4. stream — a failure here rolls back with nothing pushed to Valkey;
-          5. persist the assistant turn, then push *both* sides to the window
-             together, only after the full turn succeeded.
+          4. stream tokens live — a provider failure here rolls back with nothing
+             pushed to Valkey;
+          5. screen the assembled reply. If SAFE, persist the assistant turn and
+             push *both* sides to the window together. If BLOCKED, persist only
+             the user turn to the cache (it is durable in Postgres after the
+             handler commits) so Valkey and Postgres stay consistent, then raise.
         """
         recent = await ctx.load_recent(conversation.id, db, valkey)
         messages = ctx.build_messages(conversation, recent, user_text)
 
         # Persist the user turn durably first, but keep it out of the cache until
-        # the assistant reply lands — see the docstring above.
+        # we know the turn's fate — see the docstring above.
         await ctx.append_turn(conversation, "user", user_text, db, valkey, push_cache=False)
 
+        # Stream tokens to the client live while accumulating the full reply.
         collected: list[str] = []
         async for delta in self.provider.stream(messages):
             collected.append(delta)
             yield delta
 
         reply = "".join(collected).strip()
-        if reply:
-            await ctx.append_turn(
-                conversation, "assistant", reply, db, valkey, push_cache=False
-            )
-            # Both sides are now in the DB; warm the cache as one atomic pair so
-            # the window can never hold a user turn without its reply.
+        if not reply:
+            return
+
+        if safety.is_blocked(reply):
+            # Blocked output: do NOT persist or cache the assistant turn. The user
+            # turn is committed by the handler, so push just it to the window to
+            # keep Valkey consistent with Postgres (no orphan, no missing turn).
             await ctx.push_window(
-                conversation.id,
-                [
-                    {"role": "user", "content": user_text},
-                    {"role": "assistant", "content": reply},
-                ],
-                valkey,
+                conversation.id, [{"role": "user", "content": user_text}], valkey
             )
-            await ctx.maybe_summarize(conversation, db, self.provider)
+            raise BlockedContentError(safety.BLOCK_REASON)
+
+        await ctx.append_turn(
+            conversation, "assistant", reply, db, valkey, push_cache=False
+        )
+        # Both sides are now in the DB; warm the cache as one atomic pair so the
+        # window can never hold a user turn without its reply.
+        await ctx.push_window(
+            conversation.id,
+            [
+                {"role": "user", "content": user_text},
+                {"role": "assistant", "content": reply},
+            ],
+            valkey,
+        )
+        await ctx.maybe_summarize(conversation, db, self.provider)
 
     async def respond_bubbles(
         self, conversation: Conversation, user_text: str, db: AsyncSession, valkey
