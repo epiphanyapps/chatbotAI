@@ -76,7 +76,7 @@ max_scale_instances = 5
 # - stripe_secret_key
 # - jwt_secret_key
 # - telegram_bot_token (optional)
-# - openai_api_key (optional)
+# - openrouter_api_key (conversation engine)
 # - encryption_key
 # - alert_email
 # - slack_webhook (optional)

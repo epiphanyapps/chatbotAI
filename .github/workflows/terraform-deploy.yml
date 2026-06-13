@@ -111,7 +111,7 @@ jobs:
         TF_VAR_stripe_webhook_secret: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
         TF_VAR_jwt_secret_key: ${{ secrets.JWT_SECRET_KEY }}
         TF_VAR_telegram_bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        TF_VAR_openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+        TF_VAR_openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
         TF_VAR_encryption_key: ${{ secrets.ENCRYPTION_KEY }}
         TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
         TF_VAR_slack_webhook: ${{ secrets.SLACK_WEBHOOK }}
@@ -163,7 +163,7 @@ jobs:
         TF_VAR_stripe_webhook_secret: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
         TF_VAR_jwt_secret_key: ${{ secrets.JWT_SECRET_KEY }}
         TF_VAR_telegram_bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        TF_VAR_openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+        TF_VAR_openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
         TF_VAR_encryption_key: ${{ secrets.ENCRYPTION_KEY }}
         TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
         TF_VAR_slack_webhook: ${{ secrets.SLACK_WEBHOOK }}

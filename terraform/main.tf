@@ -146,7 +146,7 @@ module "app_platform" {
   stripe_secret_key  = var.stripe_secret_key
   telegram_bot_token = var.telegram_bot_token
   jwt_secret_key     = var.jwt_secret_key
-  openai_api_key     = var.openai_api_key
+  openrouter_api_key = var.openrouter_api_key
   encryption_key     = var.encryption_key
 
   depends_on = [

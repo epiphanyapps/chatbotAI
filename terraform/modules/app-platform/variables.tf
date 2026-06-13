@@ -169,8 +169,8 @@ variable "telegram_bot_token" {
   default     = ""
 }
 
-variable "openai_api_key" {
-  description = "OpenAI API key (optional)"
+variable "openrouter_api_key" {
+  description = "OpenRouter API key for the conversation engine"
   type        = string
   sensitive   = true
   default     = ""

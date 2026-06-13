@@ -72,7 +72,7 @@ max_scale_instances = 2 # Limit scaling for dev
 # - stripe_secret_key (test keys)
 # - jwt_secret_key (test secret)
 # - telegram_bot_token (test bot - optional)
-# - openai_api_key (optional)
+# - openrouter_api_key (conversation engine)
 # - encryption_key (test key)
 # - alert_email (developer email)
 # - slack_webhook (optional)
