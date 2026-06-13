@@ -97,3 +97,6 @@ tfplan
 # commit these — a committed local-backend override breaks remote CI state.
 *_override.tf
 override.tf
+
+# Generated model-eval reports (contain explicit transcripts)
+backend/eval/reports/
