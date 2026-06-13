@@ -10,24 +10,16 @@ output "vpc_cidr" {
   value       = digitalocean_vpc.main.ip_range
 }
 
+# NOTE: Firewalls are disabled for App Platform deployments
+# These outputs are preserved for Droplet-based deployments
 output "web_firewall_id" {
-  description = "Web firewall ID"
-  value       = digitalocean_firewall.web.id
+  description = "Web firewall ID (null for App Platform)"
+  value       = null
 }
 
 output "database_firewall_id" {
-  description = "Database firewall ID"
-  value       = digitalocean_firewall.database.id
-}
-
-output "load_balancer_id" {
-  description = "Load balancer ID (if created)"
-  value       = length(digitalocean_loadbalancer.main) > 0 ? digitalocean_loadbalancer.main[0].id : null
-}
-
-output "load_balancer_ip" {
-  description = "Load balancer IP address (if created)"
-  value       = length(digitalocean_loadbalancer.main) > 0 ? digitalocean_loadbalancer.main[0].ip : null
+  description = "Database firewall ID (null for App Platform)"
+  value       = null
 }
 
 output "reserved_ip" {

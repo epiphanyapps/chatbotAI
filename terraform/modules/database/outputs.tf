@@ -65,21 +65,21 @@ output "postgres_pool_uri" {
 
 output "postgres_readonly_pool_uri" {
   description = "PostgreSQL read-only pool URI"
-  value       = digitalocean_database_connection_pool.readonly.private_uri
+  value       = length(digitalocean_database_connection_pool.readonly) > 0 ? digitalocean_database_connection_pool.readonly[0].private_uri : null
   sensitive   = true
 }
 
 # Read replica outputs (if enabled)
 output "postgres_read_replica_host" {
   description = "PostgreSQL read replica host (if enabled)"
-  value = length(digitalocean_database_replica.postgres_read) > 0 ? digitalocean_database_replica.postgres_read[0].private_host : null
-  sensitive = true
+  value       = length(digitalocean_database_replica.postgres_read) > 0 ? digitalocean_database_replica.postgres_read[0].private_host : null
+  sensitive   = true
 }
 
 output "postgres_read_replica_uri" {
   description = "PostgreSQL read replica URI (if enabled)"
-  value = length(digitalocean_database_replica.postgres_read) > 0 ? digitalocean_database_replica.postgres_read[0].private_uri : null
-  sensitive = true
+  value       = length(digitalocean_database_replica.postgres_read) > 0 ? digitalocean_database_replica.postgres_read[0].private_uri : null
+  sensitive   = true
 }
 
 #==============================================================================
@@ -129,38 +129,11 @@ output "redis_connection_string" {
 # DATABASE USER OUTPUTS
 #==============================================================================
 
-output "app_write_user" {
-  description = "Application write user details"
-  value = {
-    name     = digitalocean_database_user.app_write.name
-    password = digitalocean_database_user.app_write.password
-  }
-  sensitive = true
-}
-
 output "readonly_user" {
   description = "Read-only user details"
   value = {
     name     = digitalocean_database_user.readonly.name
     password = digitalocean_database_user.readonly.password
-  }
-  sensitive = true
-}
-
-output "analytics_user" {
-  description = "Analytics user details"
-  value = {
-    name     = digitalocean_database_user.analytics.name
-    password = digitalocean_database_user.analytics.password
-  }
-  sensitive = true
-}
-
-output "backup_user" {
-  description = "Backup user details"
-  value = {
-    name     = digitalocean_database_user.backup.name
-    password = digitalocean_database_user.backup.password
   }
   sensitive = true
 }
@@ -173,12 +146,12 @@ output "database_info" {
   description = "Complete database connection information"
   value = {
     postgres = {
-      host             = digitalocean_database_cluster.postgres.private_host
-      port             = digitalocean_database_cluster.postgres.port
-      database         = digitalocean_database_db.chatbotai.name
-      ssl_required     = true
-      connection_pool  = digitalocean_database_connection_pool.chatbotai.name
-      readonly_pool    = digitalocean_database_connection_pool.readonly.name
+      host            = digitalocean_database_cluster.postgres.private_host
+      port            = digitalocean_database_cluster.postgres.port
+      database        = digitalocean_database_db.chatbotai.name
+      ssl_required    = true
+      connection_pool = digitalocean_database_connection_pool.chatbotai.name
+      readonly_pool   = length(digitalocean_database_connection_pool.readonly) > 0 ? digitalocean_database_connection_pool.readonly[0].name : null
     }
     redis = {
       host        = digitalocean_database_cluster.redis.private_host
@@ -197,18 +170,16 @@ output "database_status" {
   description = "Database cluster status information"
   value = {
     postgres = {
-      status     = digitalocean_database_cluster.postgres.status
-      version    = digitalocean_database_cluster.postgres.version
-      nodes      = digitalocean_database_cluster.postgres.node_count
-      size       = digitalocean_database_cluster.postgres.size
-      region     = digitalocean_database_cluster.postgres.region
+      version = digitalocean_database_cluster.postgres.version
+      nodes   = digitalocean_database_cluster.postgres.node_count
+      size    = digitalocean_database_cluster.postgres.size
+      region  = digitalocean_database_cluster.postgres.region
     }
     redis = {
-      status     = digitalocean_database_cluster.redis.status
-      version    = digitalocean_database_cluster.redis.version
-      nodes      = digitalocean_database_cluster.redis.node_count
-      size       = digitalocean_database_cluster.redis.size
-      region     = digitalocean_database_cluster.redis.region
+      version = digitalocean_database_cluster.redis.version
+      nodes   = digitalocean_database_cluster.redis.node_count
+      size    = digitalocean_database_cluster.redis.size
+      region  = digitalocean_database_cluster.redis.region
     }
   }
 }

@@ -41,16 +41,16 @@ variable "slack_webhook" {
 variable "uptime_regions" {
   description = "Regions for uptime monitoring"
   type        = list(string)
-  default     = ["us_east", "us_west", "eu_central"]
-  
+  # Valid DigitalOcean uptime check regions: us_east, us_west, eu_west, se_asia
+  default = ["us_east", "us_west", "eu_west"]
+
   validation {
     condition = alltrue([
       for region in var.uptime_regions : contains([
-        "us_east", "us_west", "eu_central", "eu_west",
-        "se_asia", "asia_pacific"
+        "us_east", "us_west", "eu_west", "se_asia"
       ], region)
     ])
-    error_message = "Invalid uptime monitoring region specified."
+    error_message = "Invalid uptime monitoring region. Valid: us_east, us_west, eu_west, se_asia"
   }
 }
 
@@ -58,9 +58,9 @@ variable "response_time_threshold" {
   description = "Response time alert threshold in milliseconds"
   type        = number
   default     = 5000
-  
+
   validation {
-    condition = var.response_time_threshold >= 100 && var.response_time_threshold <= 30000
+    condition     = var.response_time_threshold >= 100 && var.response_time_threshold <= 30000
     error_message = "Response time threshold must be between 100ms and 30s."
   }
 }

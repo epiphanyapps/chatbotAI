@@ -4,9 +4,10 @@
 *token*.txt
 *secret*
 *.env
+.env.*
 telegram_bot_token.txt
 telegram_requirements.txt
-config.py
+/config.py
 
 # Personal Training Data (CRITICAL)
 *training_pairs*.json
@@ -23,22 +24,28 @@ slutbot_*
 *conversation*.jsonl
 *.jsonl
 
-# Model Files & Checkpoints
+# Model Files & Checkpoints (ML models, not SQLAlchemy)
 *_model/
 *_checkpoints/
 comprehensive_intimate_slutbot_model/
 comprehensive_slutbot_checkpoints/
 intimate_slutbot_model/
-models/
+/models/
 
 # Runtime & Logs
 __pycache__/
 *.pyc
 *.pyo
 venv/
+.venv/
 bot_training_env/
 *.log
 bot.log
+
+# Node / frontend build artifacts
+node_modules/
+frontend/dist/
+dist/
 
 # Backups (may contain sensitive data)
 backups/
@@ -51,12 +58,16 @@ training/
 temp_*
 *_backup_*
 
-# Test outputs that might reveal sensitive info
+# Test outputs that might reveal sensitive info (root-level scratch scripts)
 test_*.py
 debug_*.py
+# ...but keep the real backend test suite (.py files only, not __pycache__)
+!backend/tests/
+!backend/tests/*.py
 
 # HTML files (may contain training data)
 *.html
+!frontend/index.html
 conversation_browser.html
 
 # Any file with personal identifiers
@@ -76,4 +87,13 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
-*~
+# Terraform
+*.auto.tfvars
+.terraform/
+terraform.tfstate*
+tfplan
+*.tfstate.backup
+# Local-only backend/provider overrides (e.g. a local backend for dev). Never
+# commit these — a committed local-backend override breaks remote CI state.
+*_override.tf
+override.tf

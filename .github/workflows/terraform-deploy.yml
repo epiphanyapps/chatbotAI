@@ -14,44 +14,96 @@ on:
     paths:
       - 'terraform/**'
 
+# Least-privilege default for GITHUB_TOKEN. Individual jobs widen this only as
+# needed (SARIF upload).
+permissions:
+  contents: read
+
 env:
   TF_VERSION: '1.6.0'
-  
+  # Terraform Cloud organization for the remote backend, used by the push-only
+  # plan/apply jobs. Set as a repo variable (not a secret — the org name is not
+  # sensitive). Workspace is selected per-run via TF_WORKSPACE.
+  TF_CLOUD_ORGANIZATION: ${{ vars.TF_CLOUD_ORGANIZATION }}
+
 jobs:
-  terraform-plan:
-    name: 'Terraform Plan'
+  # Runs on PRs and pushes. Does NOT touch the remote backend or any secret, so
+  # it works without Terraform Cloud configured and is safe for fork PRs. This
+  # is the PR gate; the real plan/apply against remote state runs only on push.
+  terraform-validate:
+    name: 'Validate'
     runs-on: ubuntu-latest
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
-    
+
+    permissions:
+      contents: read
+
     defaults:
       run:
         shell: bash
         working-directory: ./terraform
-    
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive
+
+    # -backend=false installs providers and checks config without initializing
+    # the Terraform Cloud backend, so no org/token is required here.
+    - name: Terraform Init (no backend)
+      run: terraform init -backend=false -input=false
+
+    - name: Terraform Validate
+      run: terraform validate -no-color
+
+  # Push-only. Connects to the Terraform Cloud remote backend and plans against
+  # locked state. Requires the TF_CLOUD_ORGANIZATION variable + TF_API_TOKEN
+  # secret + TFC workspaces (production/dev) to be configured.
+  terraform-plan:
+    name: 'Terraform Plan'
+    runs-on: ubuntu-latest
+    needs: terraform-validate
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
+
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./terraform
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
       with:
         terraform_version: ${{ env.TF_VERSION }}
         cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-    
+
     - name: Terraform Init
       run: terraform init
       env:
         TF_WORKSPACE: ${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}
-    
-    - name: Terraform Validate
-      run: terraform validate
-    
+
+    # NOTE: deliberately no `-out=tfplan` + upload-artifact. A saved plan embeds
+    # resolved secret values in cleartext regardless of `sensitive = true`;
+    # apply re-plans from the same locked remote state instead.
     - name: Terraform Plan
       run: |
         if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-          terraform plan -var-file="environments/production/terraform.tfvars" -out=tfplan
+          terraform plan -input=false -no-color -var-file="environments/production/terraform.tfvars"
         else
-          terraform plan -var-file="environments/dev/terraform.tfvars" -out=tfplan
+          terraform plan -input=false -no-color -var-file="environments/dev/terraform.tfvars"
         fi
       env:
         TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
@@ -64,81 +116,47 @@ jobs:
         TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
         TF_VAR_slack_webhook: ${{ secrets.SLACK_WEBHOOK }}
         TF_WORKSPACE: ${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}
-    
-    - name: Upload Plan Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: tfplan-${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}
-        path: terraform/tfplan
-        retention-days: 5
-    
-    - name: Comment PR with Plan
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const fs = require('fs');
-          const { execSync } = require('child_process');
-          
-          // Get terraform plan output
-          const planOutput = execSync('cd terraform && terraform show -no-color tfplan', { encoding: 'utf8' });
-          
-          const output = `
-          ## Terraform Plan 📋
-          
-          <details><summary>Show Plan</summary>
-          
-          \`\`\`
-          ${planOutput}
-          \`\`\`
-          
-          </details>
-          
-          *Environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}*
-          `;
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: output
-          });
 
   terraform-apply:
     name: 'Terraform Apply'
     runs-on: ubuntu-latest
     needs: terraform-plan
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    # Production applies are gated by the GitHub `production` Environment —
+    # configure required reviewers there so a push to main does not deploy
+    # unattended.
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
-    
+
+    permissions:
+      contents: read
+
     defaults:
       run:
         shell: bash
         working-directory: ./terraform
-    
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    
-    - name: Setup Terraform  
+
+    - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
       with:
         terraform_version: ${{ env.TF_VERSION }}
         cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-    
-    - name: Download Plan Artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: tfplan-${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}
-        path: terraform/
-    
+
     - name: Terraform Init
       run: terraform init
       env:
         TF_WORKSPACE: ${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}
-    
+
     - name: Terraform Apply
-      run: terraform apply -auto-approve tfplan
+      run: |
+        if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+          terraform apply -input=false -auto-approve -var-file="environments/production/terraform.tfvars"
+        else
+          terraform apply -input=false -auto-approve -var-file="environments/dev/terraform.tfvars"
+        fi
       env:
         TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
         TF_VAR_stripe_secret_key: ${{ secrets.STRIPE_SECRET_KEY }}
@@ -150,7 +168,7 @@ jobs:
         TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
         TF_VAR_slack_webhook: ${{ secrets.SLACK_WEBHOOK }}
         TF_WORKSPACE: ${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}
-    
+
     - name: Output Infrastructure Info
       run: |
         echo "## 🚀 Infrastructure Deployed Successfully" >> $GITHUB_STEP_SUMMARY
@@ -169,31 +187,37 @@ jobs:
     name: 'Security Scan'
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    
+
+    permissions:
+      contents: read
+      security-events: write  # upload SARIF to code scanning
+
     defaults:
       run:
         shell: bash
         working-directory: ./terraform
-    
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    
+
+    # Pinned to a release tag rather than @master (a moving ref is a
+    # supply-chain risk). Pin to a full commit SHA for the strongest guarantee.
     - name: Run Checkov
-      uses: bridgecrewio/checkov-action@master
+      uses: bridgecrewio/checkov-action@v12
       with:
         directory: terraform/
         framework: terraform
         output_format: sarif
         output_file_path: checkov-report.sarif
         soft_fail: true
-    
+
     - name: Upload Checkov Results
       uses: github/codeql-action/upload-sarif@v3
       if: always()
       with:
         sarif_file: checkov-report.sarif
-    
+
     - name: Run tfsec
       uses: aquasecurity/tfsec-action@v1.0.3
       with:
@@ -204,8 +228,11 @@ jobs:
     name: 'Notify Deployment'
     runs-on: ubuntu-latest
     needs: terraform-apply
-    if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-    
+    if: always() && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+
+    permissions:
+      contents: read
+
     steps:
     - name: Notify Slack on Success
       if: needs.terraform-apply.result == 'success'
@@ -215,13 +242,13 @@ jobs:
         fields: repo,commit,author,ref,workflow
         text: |
           ✅ ChatbotAI infrastructure deployed successfully!
-          
+
           Environment: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Development' }}
           Commit: ${{ github.sha }}
           Author: ${{ github.actor }}
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
-    
+
     - name: Notify Slack on Failure
       if: needs.terraform-apply.result == 'failure'
       uses: 8398a7/action-slack@v3
@@ -230,11 +257,11 @@ jobs:
         fields: repo,commit,author,ref,workflow
         text: |
           ❌ ChatbotAI infrastructure deployment failed!
-          
+
           Environment: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Development' }}
           Commit: ${{ github.sha }}
           Author: ${{ github.actor }}
-          
+
           Please check the GitHub Actions logs for details.
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

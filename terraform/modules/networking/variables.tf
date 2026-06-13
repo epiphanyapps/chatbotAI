@@ -30,7 +30,7 @@ variable "vpc_cidr" {
 variable "allowed_ssh_ips" {
   description = "IP addresses allowed SSH access"
   type        = list(string)
-  default     = ["0.0.0.0/0"]  # Restrict in production
+  default     = ["0.0.0.0/0"] # Restrict in production
 }
 
 variable "ssl_certificate_name" {

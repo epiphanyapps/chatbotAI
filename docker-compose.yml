@@ -30,6 +30,11 @@ services:
       # Optional integrations
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+
+      # Conversation engine (OpenRouter, uncensored). LLM_ACTIVE_PRESET selects
+      # LLM_MODEL_PRIMARY (RP finetune) vs LLM_MODEL_ALT (frontier-permissive).
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - LLM_ACTIVE_PRESET=${LLM_ACTIVE_PRESET:-primary}
       
       # Application configuration
       - ENVIRONMENT=production

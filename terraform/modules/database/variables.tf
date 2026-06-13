@@ -63,13 +63,13 @@ variable "postgres_username" {
 variable "connection_pool_size" {
   description = "Size of main connection pool"
   type        = number
-  default     = 20
+  default     = 10 # Reduced for smallest DB tier (25 max connections)
 }
 
 variable "readonly_pool_size" {
   description = "Size of read-only connection pool"
   type        = number
-  default     = 10
+  default     = 5 # Reduced for smallest DB tier
 }
 
 variable "enable_read_replica" {
@@ -81,6 +81,12 @@ variable "enable_read_replica" {
 #==============================================================================
 # REDIS CONFIGURATION
 #==============================================================================
+
+variable "redis_region" {
+  description = "Region for Redis cluster (some regions don't support Redis)"
+  type        = string
+  default     = "" # Empty means use main region
+}
 
 variable "redis_version" {
   description = "Redis version"
@@ -108,7 +114,7 @@ variable "maintenance_day" {
   description = "Preferred maintenance day"
   type        = string
   default     = "sunday"
-  
+
   validation {
     condition = contains([
       "monday", "tuesday", "wednesday", "thursday",
@@ -128,9 +134,9 @@ variable "backup_hour" {
   description = "Hour for automated backups (0-23)"
   type        = number
   default     = 2
-  
+
   validation {
-    condition = var.backup_hour >= 0 && var.backup_hour <= 23
+    condition     = var.backup_hour >= 0 && var.backup_hour <= 23
     error_message = "Backup hour must be between 0 and 23."
   }
 }
@@ -139,9 +145,9 @@ variable "backup_minute" {
   description = "Minute for automated backups (0-59)"
   type        = number
   default     = 0
-  
+
   validation {
-    condition = var.backup_minute >= 0 && var.backup_minute <= 59
+    condition     = var.backup_minute >= 0 && var.backup_minute <= 59
     error_message = "Backup minute must be between 0 and 59."
   }
 }
@@ -149,12 +155,6 @@ variable "backup_minute" {
 #==============================================================================
 # SECURITY & ACCESS
 #==============================================================================
-
-variable "allowed_admin_ips" {
-  description = "IP addresses allowed admin database access"
-  type        = list(string)
-  default     = []
-}
 
 variable "enable_ssl" {
   description = "Enable SSL for database connections"
@@ -188,9 +188,9 @@ variable "cpu_alert_threshold" {
   description = "CPU usage alert threshold (percentage)"
   type        = number
   default     = 80
-  
+
   validation {
-    condition = var.cpu_alert_threshold >= 0 && var.cpu_alert_threshold <= 100
+    condition     = var.cpu_alert_threshold >= 0 && var.cpu_alert_threshold <= 100
     error_message = "CPU threshold must be between 0 and 100."
   }
 }
@@ -199,9 +199,9 @@ variable "memory_alert_threshold" {
   description = "Memory usage alert threshold (percentage)"
   type        = number
   default     = 85
-  
+
   validation {
-    condition = var.memory_alert_threshold >= 0 && var.memory_alert_threshold <= 100
+    condition     = var.memory_alert_threshold >= 0 && var.memory_alert_threshold <= 100
     error_message = "Memory threshold must be between 0 and 100."
   }
 }
@@ -242,9 +242,9 @@ variable "log_retention_days" {
   description = "Number of days to retain database logs"
   type        = number
   default     = 30
-  
+
   validation {
-    condition = var.log_retention_days >= 1 && var.log_retention_days <= 365
+    condition     = var.log_retention_days >= 1 && var.log_retention_days <= 365
     error_message = "Log retention must be between 1 and 365 days."
   }
 }

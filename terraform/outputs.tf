@@ -79,11 +79,6 @@ output "redis_port" {
 # SSL & SECURITY
 #==============================================================================
 
-output "ssl_certificate_id" {
-  description = "SSL certificate ID"
-  value       = module.app_platform.ssl_certificate_id
-}
-
 output "force_https_enabled" {
   description = "HTTPS enforcement status"
   value       = var.force_https
@@ -162,7 +157,7 @@ output "estimated_monthly_cost" {
       api_tier = local.app_config[var.environment].api_size
     }
     environment = var.environment
-    note = "Actual costs may vary based on usage and scaling"
+    note        = "Actual costs may vary based on usage and scaling"
   }
 }
 
@@ -173,7 +168,7 @@ output "estimated_monthly_cost" {
 output "deployment_summary" {
   description = "Summary of deployed infrastructure"
   value = {
-    environment     = var.environment
+    environment    = var.environment
     region         = var.region
     app_url        = module.app_platform.app_url
     database_tier  = local.db_config[var.environment].postgres_size
@@ -228,7 +223,7 @@ output "debug_info" {
     }
     database_details = {
       postgres_nodes = local.db_config[var.environment].postgres_nodes
-      redis_nodes   = local.db_config[var.environment].redis_nodes
+      redis_nodes    = local.db_config[var.environment].redis_nodes
     }
     app_details = {
       github_repo   = "epiphanyapps/chatbotAI"
@@ -247,7 +242,7 @@ output "admin_access" {
     database_admin_url = "https://cloud.digitalocean.com/databases/${module.database.postgres_id}"
     app_platform_url   = "https://cloud.digitalocean.com/apps/${module.app_platform.app_id}"
     monitoring_url     = var.enable_monitoring ? "https://cloud.digitalocean.com/monitoring" : null
-    note              = "Access requires DigitalOcean account permissions"
+    note               = "Access requires DigitalOcean account permissions"
   }
   sensitive = true
 }
@@ -259,14 +254,14 @@ output "admin_access" {
 output "environment_config" {
   description = "Environment-specific configuration details"
   value = {
-    name = var.environment
+    name          = var.environment
     is_production = var.environment == "production"
-    domain = var.environment == "production" ? "intimateai.chat" : "${var.environment}.intimateai.chat"
+    domain        = var.environment == "production" ? "intimateai.chat" : "${var.environment}.intimateai.chat"
     features = {
-      autoscaling        = var.enable_autoscaling
-      monitoring        = var.enable_monitoring
-      audit_logging     = var.enable_audit_logging
-      gdpr_compliance   = var.gdpr_compliance
+      autoscaling            = var.enable_autoscaling
+      monitoring             = var.enable_monitoring
+      audit_logging          = var.enable_audit_logging
+      gdpr_compliance        = var.gdpr_compliance
       point_in_time_recovery = var.enable_point_in_time_recovery
     }
   }
