@@ -56,9 +56,10 @@ variable "do_spaces_secret_key" {
 #==============================================================================
 
 variable "stripe_secret_key" {
-  description = "Stripe secret key for payment processing"
+  description = "Stripe secret key for payment processing (Phase 4 — optional until then)"
   type        = string
   sensitive   = true
+  default     = ""
 }
 
 variable "stripe_webhook_secret" {
@@ -81,8 +82,8 @@ variable "jwt_secret_key" {
   sensitive   = true
 }
 
-variable "openai_api_key" {
-  description = "OpenAI API key (if using external LLM)"
+variable "openrouter_api_key" {
+  description = "OpenRouter API key for the conversation engine"
   type        = string
   sensitive   = true
   default     = ""
