@@ -26,11 +26,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Web Chat
 
-- [ ] **CHAT-01**: User can chat with Sophia via real-time WebSocket in browser
-- [ ] **CHAT-02**: User sees typing indicator when Sophia is "responding"
-- [ ] **CHAT-03**: Chat interface is mobile responsive
-- [ ] **CHAT-04**: Conversation history persists and loads on reconnect
-- [ ] **CHAT-05**: Same personality system (TF-IDF + Ollama) serves web chat
+- [x] **CHAT-01**: User can chat with Sophia via real-time WebSocket in browser
+- [x] **CHAT-02**: User sees typing indicator when Sophia is "responding"
+- [x] **CHAT-03**: Chat interface is mobile responsive
+- [x] **CHAT-04**: Conversation history persists and loads on reconnect
+- [x] **CHAT-05**: Shared LLM engine (OpenRouter, provider-agnostic) serves web chat AND Telegram — replaces dead TF-IDF
 
 ### Payments
 
@@ -64,8 +64,8 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ### Sophia Improvements
 
-- **SOPH-01**: More response variety (reduce repetition)
-- **SOPH-02**: Better conversation context tracking
+- [x] **SOPH-01**: More response variety (reduce repetition) — LLM generation replaces canned TF-IDF responses
+- [x] **SOPH-02**: Better conversation context tracking — persisted history + Valkey rolling window + rolling summary
 
 ### Additional Personalities
 

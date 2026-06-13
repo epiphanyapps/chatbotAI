@@ -10,3 +10,5 @@ resend>=0.7.0
 disposable-email-domains>=0.0.162
 email-validator>=2.1.0
 python-multipart>=0.0.6
+httpx>=0.27.0
+websockets>=12.0

@@ -37,9 +37,15 @@ __pycache__/
 *.pyc
 *.pyo
 venv/
+.venv/
 bot_training_env/
 *.log
 bot.log
+
+# Node / frontend build artifacts
+node_modules/
+frontend/dist/
+dist/
 
 # Backups (may contain sensitive data)
 backups/
@@ -52,9 +58,12 @@ training/
 temp_*
 *_backup_*
 
-# Test outputs that might reveal sensitive info
+# Test outputs that might reveal sensitive info (root-level scratch scripts)
 test_*.py
 debug_*.py
+# ...but keep the real backend test suite (.py files only, not __pycache__)
+!backend/tests/
+!backend/tests/*.py
 
 # HTML files (may contain training data)
 *.html

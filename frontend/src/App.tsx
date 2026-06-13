@@ -5,6 +5,7 @@ import VerifyEmail from './pages/VerifyEmail'
 import AgeGate from './pages/AgeGate'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
+import Chat from './pages/Chat'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isAgeVerified, loading } = useAuth()
@@ -27,7 +28,7 @@ export default function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/" element={
           <ProtectedRoute>
-            <div>Chat coming in Phase 3</div>
+            <Chat />
           </ProtectedRoute>
         } />
       </Routes>

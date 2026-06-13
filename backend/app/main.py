@@ -7,8 +7,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
+from app.core.database import create_tables
+from app.core.valkey import close_valkey
 from app.auth.router import router as auth_router
 from app.legal.router import router as legal_router
+from app.chat.router import router as chat_router
+
+# Import models so they register on Base before create_tables() runs.
+import app.models  # noqa: F401
 
 
 @asynccontextmanager
@@ -17,10 +23,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup
     settings = get_settings()
     print(f"Starting IntimateAI API in {settings.ENVIRONMENT} mode")
+    await create_tables()
 
     yield
 
     # Shutdown
+    await close_valkey()
     print("Shutting down IntimateAI API")
 
 
@@ -49,6 +57,7 @@ def create_app() -> FastAPI:
     # Register routers
     app.include_router(auth_router)
     app.include_router(legal_router)
+    app.include_router(chat_router)
 
     @app.get("/health")
     async def health_check() -> dict:

@@ -1,11 +1,7 @@
-# Core dependencies for intimate AI storytelling bot
+# Telegram bot — thin client of the IntimateAI backend /chat API.
+# Inference, persona, and memory now live in backend/app/engine (the shared
+# brain); the bot only does Telegram I/O + message pacing.
 requests>=2.28.0
-scikit-learn>=1.1.0
-numpy>=1.21.0
-
-# Optional: for advanced features
-# transformers>=4.21.0
-# torch>=1.12.0
 
 # Development
 # pytest>=7.0.0

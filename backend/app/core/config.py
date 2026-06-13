@@ -38,6 +38,30 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: list[str] = ["https://intimateai.chat", "http://localhost:3000"]
 
+    # LLM (OpenRouter, OpenAI-compatible)
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
+    # Two presets so realism/explicitness can be A/B tuned without a redeploy.
+    # primary = RP finetune (voice + explicit quality); alt = frontier-permissive (memory + coherence)
+    LLM_MODEL_PRIMARY: str = "sao10k/l3.3-euryale-70b"
+    LLM_MODEL_ALT: str = "deepseek/deepseek-chat"
+    LLM_ACTIVE_PRESET: str = "primary"  # "primary" | "alt"
+    LLM_TEMPERATURE: float = 0.9
+    LLM_MAX_TOKENS: int = 800
+    # Number of recent turns (user+assistant messages) kept in the live context window.
+    LLM_CONTEXT_TURNS: int = 20
+    # When stored history exceeds this many messages, older turns get summarized.
+    LLM_SUMMARY_THRESHOLD: int = 30
+
+    @property
+    def active_model(self) -> str:
+        """Resolve the active model id from the selected preset."""
+        return (
+            self.LLM_MODEL_ALT
+            if self.LLM_ACTIVE_PRESET == "alt"
+            else self.LLM_MODEL_PRIMARY
+        )
+
 
 @lru_cache
 def get_settings() -> Settings:
