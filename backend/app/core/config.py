@@ -15,9 +15,15 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str
+    # CA cert (PEM) for verifying managed-Postgres TLS (DigitalOcean's CA is not
+    # a public root). Leave empty for local/plaintext dev.
+    DATABASE_SSL_CA: str = ""
 
     # Valkey (Redis-compatible)
     VALKEY_URL: str
+    # CA cert (PEM) for verifying managed-Valkey TLS. Empty = verify against
+    # system roots (or no TLS for local dev).
+    VALKEY_SSL_CA: str = ""
 
     # JWT Configuration
     JWT_SECRET: str

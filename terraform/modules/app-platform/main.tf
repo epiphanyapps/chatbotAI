@@ -13,44 +13,129 @@ terraform {
 #==============================================================================
 # APP PLATFORM APPLICATION
 #==============================================================================
-# Note: The full App Platform app is deferred until frontend/backend code exists.
-# This creates a placeholder app spec that can be updated when code is ready.
-
-# App Platform application
-# The app exists and will be updated when code is deployed
-# For now it's a placeholder with deployment intentionally allowed to fail
+# Two components on one app, fronted by App Platform ingress:
+#   - api: FastAPI backend (built from backend/Dockerfile), served at /api
+#   - web: React/Vite static SPA, served at /
+# Requires a DigitalOcean <-> GitHub OAuth connection so App Platform can build
+# from the repo. Secrets are injected as SECRET-type env vars (encrypted at rest).
 resource "digitalocean_app" "chatbotai" {
   spec {
     name   = var.name_prefix
     region = var.region
 
-    # Static site placeholder - will be replaced with actual app via CI/CD
-    # Using inline HTML to avoid build failures
-    static_site {
-      name           = "placeholder"
-      build_command  = "echo 'Placeholder'"
-      output_dir     = "."
-      index_document = "index.html"
+    # ---- API: FastAPI backend ------------------------------------------------
+    service {
+      name               = "api"
+      instance_count     = var.api_instance_count
+      instance_size_slug = var.api_instance_size
+      http_port          = 8080
 
-      # Use a sample repo that always succeeds
-      git {
-        repo_clone_url = "https://github.com/digitalocean/sample-html.git"
-        branch         = "main"
+      github {
+        repo           = var.github_repo
+        branch         = var.github_branch
+        deploy_on_push = var.github_auto_deploy
+      }
+      source_dir      = "backend"
+      dockerfile_path = "backend/Dockerfile"
+
+      health_check {
+        http_path = "/health"
       }
 
-      # Environment variables
+      # Connection strings (the app normalises the driver/SSL itself).
       env {
-        key   = "NODE_ENV"
+        key   = "DATABASE_URL"
+        value = var.postgres_connection_uri
+        type  = "SECRET"
+      }
+      env {
+        key   = "DATABASE_SSL_CA"
+        value = var.postgres_ca_cert
+        type  = "SECRET"
+      }
+      env {
+        key   = "VALKEY_URL"
+        value = var.redis_connection_uri
+        type  = "SECRET"
+      }
+      env {
+        key   = "VALKEY_SSL_CA"
+        value = var.redis_ca_cert
+        type  = "SECRET"
+      }
+      env {
+        key   = "JWT_SECRET"
+        value = var.jwt_secret_key
+        type  = "SECRET"
+      }
+      env {
+        key   = "MAGIC_LINK_SECRET"
+        value = var.magic_link_secret
+        type  = "SECRET"
+      }
+      env {
+        key   = "RESEND_API_KEY"
+        value = var.resend_api_key
+        type  = "SECRET"
+      }
+      env {
+        key   = "OPENROUTER_API_KEY"
+        value = var.openrouter_api_key
+        type  = "SECRET"
+      }
+      env {
+        key   = "APP_URL"
+        value = "https://${var.domain_name}"
+      }
+      env {
+        key   = "ENVIRONMENT"
         value = var.environment
       }
+      env {
+        key   = "DEBUG"
+        value = "false"
+      }
     }
-  }
 
-  lifecycle {
-    # Ignore changes to spec as app will be updated via CI/CD
-    ignore_changes = [
-      spec
-    ]
+    # ---- WEB: React/Vite SPA (static) ---------------------------------------
+    static_site {
+      name              = "web"
+      build_command     = "npm ci && npm run build"
+      output_dir        = "dist"
+      catchall_document = "index.html" # client-side routing fallback
+
+      github {
+        repo           = var.github_repo
+        branch         = var.github_branch
+        deploy_on_push = var.github_auto_deploy
+      }
+      source_dir = "frontend"
+    }
+
+    # ---- Ingress: /api -> api (prefix stripped), everything else -> web ------
+    ingress {
+      rule {
+        component {
+          name                 = "api"
+          preserve_path_prefix = false # backend sees /auth, /chat, /health
+        }
+        match {
+          path {
+            prefix = "/api"
+          }
+        }
+      }
+      rule {
+        component {
+          name = "web"
+        }
+        match {
+          path {
+            prefix = "/"
+          }
+        }
+      }
+    }
   }
 }
 
