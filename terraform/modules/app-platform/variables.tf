@@ -127,6 +127,20 @@ variable "redis_connection_uri" {
   sensitive   = true
 }
 
+variable "postgres_ca_cert" {
+  description = "CA certificate (PEM/base64) for verifying Postgres TLS"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "redis_ca_cert" {
+  description = "CA certificate (PEM/base64) for verifying Valkey/Redis TLS"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "postgres_cluster_name" {
   description = "Name of PostgreSQL cluster for App Platform reference"
   type        = string
@@ -171,6 +185,20 @@ variable "telegram_bot_token" {
 
 variable "openrouter_api_key" {
   description = "OpenRouter API key for the conversation engine"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "magic_link_secret" {
+  description = "Secret for signing passwordless magic-link tokens"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "resend_api_key" {
+  description = "Resend API key for sending magic-link emails"
   type        = string
   sensitive   = true
   default     = ""

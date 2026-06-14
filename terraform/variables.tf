@@ -89,6 +89,20 @@ variable "openrouter_api_key" {
   default     = ""
 }
 
+variable "magic_link_secret" {
+  description = "Secret for signing passwordless magic-link tokens"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "resend_api_key" {
+  description = "Resend API key for sending magic-link emails"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "encryption_key" {
   description = "Application encryption key for sensitive data"
   type        = string

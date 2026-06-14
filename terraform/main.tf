@@ -141,12 +141,16 @@ module "app_platform" {
   # Database connections
   postgres_connection_uri = module.database.postgres_private_uri
   redis_connection_uri    = module.database.redis_private_uri
+  postgres_ca_cert        = module.database.postgres_ca_cert
+  redis_ca_cert           = module.database.redis_ca_cert
 
   # Environment variables
   stripe_secret_key  = var.stripe_secret_key
   telegram_bot_token = var.telegram_bot_token
   jwt_secret_key     = var.jwt_secret_key
   openrouter_api_key = var.openrouter_api_key
+  magic_link_secret  = var.magic_link_secret
+  resend_api_key     = var.resend_api_key
   encryption_key     = var.encryption_key
 
   depends_on = [
